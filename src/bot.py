@@ -11,10 +11,10 @@ from discord_slash import SlashCommand, SlashContext
 
 from music import MusicCog
 
-BOT_VERSION = '0.1.0'
+BOT_VERSION = '1.1.0'
 
 bot = DiscordBot(
-	'',
+	'.',
 	intents=discord.Intents.default(),
 	allowed_mentions=AllowedMentions(users=True),
 )

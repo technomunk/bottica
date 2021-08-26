@@ -1,9 +1,20 @@
 # Response messages.
 
-SUCCESS = (
-	'Done',
+from typing import Sequence
+
+
+SUCCESSES: Sequence[str] = (
 	'Success',
+	'Done',
 	':100:',
 	':ok:',
-	':+1:',
+	':smile::+1:',
+)
+
+FAILS: Sequence[str] = (
+	'Fail',
+	'Bump',
+	'Poop',
+	':poop:',
+	':frowning::-1:',
 )
