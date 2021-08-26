@@ -54,6 +54,7 @@ def run_bot():
 	parser = ArgumentParser(prog='bottica', description='Run a discord bot named "Bottica".')
 	parser.add_argument('--sync', action='store_true', help='Synchronize bot commands with discord.')
 	parser.add_argument('--debug-guild', type=int, help='Debug Guild id to use.')
+	parser.add_argument('--verbose', action='store_true', help='Print extra info.')
 
 	args = parser.parse_args()
 
@@ -71,7 +72,7 @@ def run_bot():
 	
 	slash.debug_guild = args.debug_guild
 	
-	bot.add_cog(MusicCog(bot))
+	bot.add_cog(MusicCog(bot, verbose=args.verbose))
 	bot.run(token)
 
 
