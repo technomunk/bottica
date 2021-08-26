@@ -4,6 +4,7 @@ import random
 import traceback
 from collections import deque
 from logging import error, warn
+from os import path
 from typing import Sequence
 
 import discord
@@ -49,22 +50,26 @@ class MusicCog(commands.Cog):
 		self.verbose = verbose
 
 
-	# TODO: this should queue a task for the url to be downloaded
-	async def _queue_download(self, urls: Sequence[str]):
+	async def _queue_audio(self, infos: Sequence[dict]):
 		if self.is_shuffling:
 			# pick a random url and process it first, keeping the rest in order
-			idx = random.randrange(1, len(urls))
-			urls[0], urls[idx] = urls[idx], urls[0]
+			idx = random.randrange(1, len(infos))
+			infos[0], infos[idx] = infos[idx], infos[0]
 
-		for url in urls:
-			info = await self.bot.loop.run_in_executor(None, lambda: self.ytdl.extract_info(url))
-			if not info:
-				warn(f'Skipping {url} because it could not be downloaded!')
-				continue
+		for info in infos:
 			filename = self.ytdl.prepare_filename(info)
-			self.queue.append(filename)
-			if not self.is_playing():
-				self.play_next()
+			if path.exists(filename):
+				self.queue.append(filename)
+			else:
+				url = info['url']
+				# download should be run asynchronously as to avoid blocking the bot
+				info = await self.bot.loop.run_in_executor(None, lambda: self.ytdl.extract_info(url))
+				if not info:
+					warn(f'Skipping {url} because it could not be downloaded!')
+					continue
+				self.queue.append(filename)
+				if not self.is_playing():
+					self.play_next()
 
 
 	def is_playing(self):
@@ -80,6 +85,7 @@ class MusicCog(commands.Cog):
 			if not await _validate_context(ctx):
 				return
 			self.voice_client = ctx.voice_client
+			# download should be run asynchronously as to avoid blocking the bot
 			info = await self.bot.loop.run_in_executor(
 				None,
 				lambda: self.ytdl.extract_info(query, download=False, process=False),
