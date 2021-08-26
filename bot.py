@@ -1,13 +1,14 @@
 # Discord bot entry point.
 # Register and run the main logic.
 
+from argparse import ArgumentParser
+
 import discord
 from discord_slash import SlashCommand, SlashContext
 
-BOT_VERSION = '0.0.0'
+BOT_VERSION = '0.1.0'
 
 bot = discord.Client(intents=discord.Intents.default())
-# when developing add 'sync_commands=True' and 'debug_guild=<guild id>'
 slash = SlashCommand(bot)
 
 @bot.event
@@ -28,6 +29,12 @@ async def version(ctx: SlashContext):
 
 
 def run_bot():
+	parser = ArgumentParser(prog='bottica', description='Run a discord bot named "Bottica".')
+	parser.add_argument('--sync', action='store_true', help='Synchronize bot commands with discord.')
+	parser.add_argument('--debug-guild', type=int, help='Debug Guild id to use.')
+
+	args = parser.parse_args()
+
 	token = ''
 	try:
 		with open('.token') as token_file:
@@ -35,6 +42,13 @@ def run_bot():
 	except FileNotFoundError:
 		print('Please create a ".token" file with a bot token to use.')
 		return
+	
+	if args.sync:
+		print("Synchronizing commands")
+		bot.loop.create_task(slash.sync_all_commands())
+	
+	slash.debug_guild = args.debug_guild
+	
 	bot.run(token)
 
 
