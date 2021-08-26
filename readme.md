@@ -1,3 +1,17 @@
 # Muse bot
 
 A discord bot that plays music.
+
+## Installing
+
+- Get [python 3](https://www.python.org/downloads/).
+- Create a virtual environment: `python3 -m venv <venv>`
+- Activate virtual environment: `source <venv>/Scripts/activate`
+- Install requirements: `pip install -r requirements.txt`
+- Get bot token from discord `https://discord.com/developers/applications/<app_id>/bot`
+- Save the token to `.token` file
+
+## Running
+
+- Activate virtual environment: `source <venv>/Scripts/activate`
+- Run the bot: `python3 bot.py`
