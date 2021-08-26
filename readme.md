@@ -14,4 +14,4 @@ A personal discord bot.
 ## Running
 
 - Activate virtual environment: `source <venv>/Scripts/activate`
-- Run the bot: `python3 bot.py`
+- Run the bot: `python3 src/bot.py`
