@@ -1,14 +1,23 @@
 # Discord bot entry point.
 # Register and run the main logic.
 
+import random
 from argparse import ArgumentParser
 
 import discord
+from discord.ext.commands import Bot as DiscordBot
+from discord.mentions import AllowedMentions
 from discord_slash import SlashCommand, SlashContext
+
+from music import MusicCog
 
 BOT_VERSION = '0.1.0'
 
-bot = discord.Client(intents=discord.Intents.default())
+bot = DiscordBot(
+	'',
+	intents=discord.Intents.default(),
+	allowed_mentions=AllowedMentions(users=True),
+)
 slash = SlashCommand(bot)
 
 @bot.event
@@ -26,6 +35,19 @@ async def version(ctx: SlashContext):
 	Print the current bot version.
 	'''
 	await ctx.send(f"My version is `{BOT_VERSION}`.")
+
+
+@slash.slash()
+async def rate(ctx: SlashContext, user: discord.Member):
+	'''
+	Rate the provided user out of 10.
+	'''
+	print(f'Rating {user.display_name} (id: {user.id})')
+	if user.id == 305440304528359424 or user == bot.user:
+		rating = 10
+	else:
+		rating = random.randint(1, 9)
+	await ctx.send(f'{user.mention} is {rating}/10.')
 
 
 def run_bot():
