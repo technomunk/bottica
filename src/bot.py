@@ -71,6 +71,7 @@ def run_bot():
 	
 	slash.debug_guild = args.debug_guild
 	
+	bot.add_cog(MusicCog(bot))
 	bot.run(token)
 
 
