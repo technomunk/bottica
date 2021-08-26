@@ -1,6 +1,6 @@
-# Muse bot
+# Bottica
 
-A discord bot that plays music.
+A personal discord bot.
 
 ## Installing
 
