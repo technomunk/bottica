@@ -22,16 +22,16 @@ bot = DiscordBot(
 	allowed_mentions=AllowedMentions(users=True),
 )
 slash = SlashCommand(bot)
-logger = logging.Logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 @bot.event
 async def on_ready():
-	logger.debug(f'logged in as {bot.user.name}.')
-	logger.debug(f'user id: {bot.user.id}')
+	logger.debug('logged in as %s (user id: %d)', bot.user.name, bot.user.id)
 	logger.debug('guilds:')
 	for guild in bot.guilds:
-		logger.debug(f'{guild.name} (id: {guild.id})')
+		logger.debug('%s (id: %d)', guild.name, guild.id)
+	logger.info('%s is ready', bot.user.name)
 
 
 @slash.slash()
@@ -57,14 +57,16 @@ async def rate(ctx: SlashContext, user: discord.Member):
 
 
 def run_bot():
+	# set up arguments
 	parser = ArgumentParser(prog='bottica', description='Run a discord bot named "Bottica".')
 	parser.add_argument('--sync', action='store_true', help='Synchronize bot commands with discord.')
 	parser.add_argument('--debug-guild', type=int, help='Debug Discord Guild id to use, will override one provided in config.')
 	parser.add_argument('--token', type=str, help='Discord API token to use, will override one provided in config.')
-	parser.add_argument('--verbose', action='store_true', help='Print extra info.')
+	parser.add_argument('--log', choices=('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL',))
 
 	args = parser.parse_args()
 
+	# parse configs
 	config = {}
 	try:
 		config = toml.load('config.toml')
@@ -75,6 +77,15 @@ def run_bot():
 		print('Please provide an API token to use!')
 		print('Add it to "config.toml" or provide with --token.')
 
+	# set up logging
+	log_level = args.log or config.get('log') or 0
+	logging.basicConfig(
+		format='%(asctime)s %(levelname)s %(name)s: %(message)s',
+		level=log_level,
+	)
+	logger.debug('set logging level to %s', log_level)
+	logging.getLogger('discord').setLevel('WARNING')
+
 	slash.debug_guild = args.debug_guild or config.get('debug_guild')
 	logger.debug('debug_guild=%s', slash.debug_guild)
 
@@ -82,7 +93,7 @@ def run_bot():
 		logger.info("synchronizing commands")
 		bot.loop.create_task(slash.sync_all_commands())
 	
-	bot.add_cog(MusicCog(bot, verbose=args.verbose))
+	bot.add_cog(MusicCog(bot))
 	bot.run(config['token'])
 
 

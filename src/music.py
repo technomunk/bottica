@@ -17,7 +17,7 @@ import response
 DATA_FOLDER = 'data/'
 CACHE_FOLDER = DATA_FOLDER + 'cache/'
 
-logger = logging.Logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 async def _validate_context(ctx: SlashContext) -> bool:
@@ -35,7 +35,7 @@ async def _validate_context(ctx: SlashContext) -> bool:
 
 
 class MusicCog(commands.Cog):
-	def __init__(self, bot: commands.Bot, verbose = False) -> None:
+	def __init__(self, bot: commands.Bot) -> None:
 		self.bot = bot
 		ytdl_options = {
 			'format': 'bestaudio',
@@ -43,13 +43,13 @@ class MusicCog(commands.Cog):
 			'cachedir': DATA_FOLDER + 'dlcache',
 			'download_archive': DATA_FOLDER + 'dlarchive.txt',
 			'ignoreerrors': True,
-			'quiet': not verbose,
+			'quiet': True,
 		}
 		self.ytdl = YoutubeDL(ytdl_options)
 		self.queue = deque()
 		self.voice_client = None
 		self.is_shuffling = False
-		self.verbose = verbose
+		logger.debug('MusicCog initialized')
 
 
 	async def _queue_audio(self, infos: Sequence[dict]):
