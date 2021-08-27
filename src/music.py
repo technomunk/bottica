@@ -53,6 +53,7 @@ class MusicCog(commands.Cog):
 
 
 	async def _queue_audio(self, infos: Sequence[dict]):
+		logger.debug('queueing audio')
 		if self.is_shuffling:
 			# pick a random url and process it first, keeping the rest in order
 			idx = random.randrange(1, len(infos))
@@ -61,17 +62,19 @@ class MusicCog(commands.Cog):
 		for info in infos:
 			filename = self.ytdl.prepare_filename(info)
 			if path.exists(filename):
+				logger.debug('found %s', filename)
 				self.queue.append(filename)
 			else:
 				url = info['url']
+				logger.debug('downloading %s', url)
 				# download should be run asynchronously as to avoid blocking the bot
 				info = await self.bot.loop.run_in_executor(None, lambda: self.ytdl.extract_info(url))
 				if not info:
-					logger.warn(f'skipping {url} because it could not be downloaded!')
+					logger.warn('skipping %s because it could not be downloaded!', url)
 					continue
 				self.queue.append(filename)
-				if not self.is_playing():
-					self.play_next()
+			if not self.is_playing():
+				self.play_next()
 
 
 	def is_playing(self):
@@ -91,18 +94,17 @@ class MusicCog(commands.Cog):
 			# download should be run asynchronously as to avoid blocking the bot
 			info = await self.bot.loop.run_in_executor(
 				None,
-				lambda: self.ytdl.extract_info(query, download=False, process=False),
+				lambda: self.ytdl.extract_info(query, download=False),
 			)
 			if info:
 				await ctx.send(random.choice(response.SUCCESSES))
 			else:
 				return await ctx.send(random.choice(response.FAILS))
 
-
 			if 'entries' in info:
-				await self._queue_download([entry['url'] for entry in info['entries']])
+				await self._queue_audio([entry for entry in info['entries']])
 			else:
-				await self._queue_download((info['url'],))
+				await self._queue_audio((info,))
 
 			# actual playing will happen once audio is available
 		except Exception as e:
@@ -132,11 +134,11 @@ class MusicCog(commands.Cog):
 		if not self.is_playing():
 			return await ctx.send("I'm not playing anything." + random.choice(response.FAILS))
 		
-		self.play_next()
+		self.play_next(pause=True)
 		await ctx.send(random.choice(response.SUCCESSES))
 	
 
-	def play_next(self):
+	def play_next(self, pause=False):
 		'''
 		Play the next song in the queue.
 		'''
@@ -144,6 +146,9 @@ class MusicCog(commands.Cog):
 			raise RuntimeError("Bot is not connected to voice to play.")
 		
 		if not self.queue:
+			logger.debug('empty queue')
+			if pause and self.is_playing():
+				self.voice_client.stop()
 			return
 		
 		if not self.voice_client.is_connected():

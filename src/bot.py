@@ -14,7 +14,7 @@ from discord_slash import SlashCommand, SlashContext
 
 from music import MusicCog
 
-BOT_VERSION = '0.1.1'
+BOT_VERSION = '0.1.2'
 
 bot = DiscordBot(
 	'.',
