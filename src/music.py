@@ -1,9 +1,9 @@
 # Music-playing Cog for the bot
 
+import logging
 import random
 import traceback
 from collections import deque
-from logging import error, warn
 from os import path
 from typing import Sequence
 
@@ -16,6 +16,8 @@ import response
 
 DATA_FOLDER = 'data/'
 CACHE_FOLDER = DATA_FOLDER + 'cache/'
+
+logger = logging.Logger(__name__)
 
 
 async def _validate_context(ctx: SlashContext) -> bool:
@@ -65,7 +67,7 @@ class MusicCog(commands.Cog):
 				# download should be run asynchronously as to avoid blocking the bot
 				info = await self.bot.loop.run_in_executor(None, lambda: self.ytdl.extract_info(url))
 				if not info:
-					warn(f'Skipping {url} because it could not be downloaded!')
+					logger.warn(f'skipping {url} because it could not be downloaded!')
 					continue
 				self.queue.append(filename)
 				if not self.is_playing():
@@ -81,6 +83,7 @@ class MusicCog(commands.Cog):
 		'''
 		Play provided input.
 		'''
+		logger.info('playing %s', query)
 		try:
 			if not await _validate_context(ctx):
 				return
@@ -111,6 +114,7 @@ class MusicCog(commands.Cog):
 		'''
 		Toggle shuffling of the queued playlist.
 		'''
+		logger.info('toggling shuffle')
 		self.is_shuffling = not self.is_shuffling
 		if self.is_shuffling:
 			resp = 'Shuffling queued songs.'
@@ -124,6 +128,7 @@ class MusicCog(commands.Cog):
 		'''
 		Skip the current song.
 		'''
+		logger.info('skipping song')
 		if not self.is_playing():
 			return await ctx.send("I'm not playing anything." + random.choice(response.FAILS))
 		
@@ -142,7 +147,7 @@ class MusicCog(commands.Cog):
 			return
 		
 		if not self.voice_client.is_connected():
-			return warn('Client is not connected!')
+			return logger.warn('Client is not connected!')
 		
 		if self.is_shuffling:
 			idx = random.randrange(len(self.queue))
@@ -152,7 +157,7 @@ class MusicCog(commands.Cog):
 			file = self.queue.popleft()
 		
 		if not file:
-			return warn('Attempted to play an empty file!')
+			return logger.warn('Attempted to play an empty file!')
 		
 		if self.is_playing():
 			self.voice_client.pause()
@@ -161,8 +166,7 @@ class MusicCog(commands.Cog):
 			if error is None:
 				self.play_next()
 			else:
-				warn(f'Encountered error: {error}')
+				logger.error('encountered error: %s', error)
 		
 		self.voice_client.play(discord.FFmpegPCMAudio(file, options='-vn'), after=handle_after)
-		if self.verbose:
-			print(f'Playing {file}')
+		logger.debug('playing %s', file)

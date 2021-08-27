@@ -9,7 +9,6 @@ A personal discord bot.
 - Activate virtual environment: `source <venv>/Scripts/activate`
 - Install requirements: `pip install -r requirements.txt`
 - Get bot token from discord `https://discord.com/developers/applications/<app_id>/bot`
-- Save the token to `.token` file
 
 ## Running
 
