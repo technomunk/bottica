@@ -37,7 +37,7 @@ async def check_author_is_voice_connected(ctx: commands.Context) -> bool:
 
 
 def check_author_is_dj(ctx: commands.Context) -> bool:
-    return "@dj" in ctx.author.roles
+    return "@dj" in (role.name for role in ctx.author.roles)
 
 
 Playlist = Dict[str, Tuple[str, str]]
