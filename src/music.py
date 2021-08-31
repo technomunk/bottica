@@ -126,7 +126,7 @@ class MusicCog(commands.Cog, name="Music"):
 
     def status(self) -> str:
         assert self.playlists["all"] is not None
-        return f"with {len(self.playlists['all'])} songs"
+        return f"with {len(self.playlists['all'])} songs at the ready"
 
     def _update_playlist(self, playlist: str, song_name: str, song_info: dict):
         if self.playlists[playlist] is None:
@@ -198,6 +198,39 @@ class MusicCog(commands.Cog, name="Music"):
         self.song_queue.extend((song, playlist[song][0]) for song in playlist)
         if not self.is_playing():
             self.play_next()
+
+    @commands.command()
+    async def pause(self, ctx: commands.Context):
+        """
+        Pause current playback.
+        """
+        if ctx.voice_client is None:
+            return await ctx.reply("Nothing is queued.", delete_after=10)
+
+        if not ctx.voice_client.is_paused():
+            ctx.voice_client.pause()
+
+    @commands.command()
+    async def unpause(self, ctx: commands.Context):
+        """
+        Resume paused playback.
+        """
+        if ctx.voice_client is None:
+            return await ctx.reply("Nothing is queued.", delete_after=10)
+
+        if ctx.voice_client.is_paused():
+            ctx.voice_client.resume()
+
+    @commands.command(aliases=("pq",))
+    @commands.check(check_author_is_dj)
+    async def purge(self, ctx: commands.Context):
+        """
+        Drop any songs queued for playback.
+        """
+        self.song_queue.clear()
+        self.current_song = None
+        if ctx.voice_client is not None:
+            ctx.voice_client.stop()
 
     @commands.command(aliases=("q",))
     async def queue(self, ctx: commands.Context):
