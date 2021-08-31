@@ -13,16 +13,18 @@ from discord.mentions import AllowedMentions
 
 from music import MusicCog
 
-BOT_VERSION = "0.2.0"
+BOT_VERSION = "0.2.1"
 
+intents = discord.Intents.none()
+intents.guild_messages = True
 bot = DiscordBot(
     "b.",
-    intents=discord.Intents.default(),
+    intents=intents,
     allowed_mentions=AllowedMentions(users=True),
 )
 logger = logging.getLogger(__name__)
 emojis = {
-    "command_heard": "👂",
+    "command_heard": "👀",
     "command_failed": "❌",
     "command_succeeded": "✅",
 }
@@ -55,7 +57,10 @@ async def status(ctx: commands.Context):
     """
     Print the bot status.
     """
-    await ctx.send(f"Running version `{BOT_VERSION}`.")
+    lines = [f"Running version `{BOT_VERSION}`."]
+    lines.extend(report() for report in bot.status_reporters)
+    embed = discord.Embed(description='\n'.join(lines))
+    await ctx.send(embed=embed)
 
 
 @bot.command()
@@ -113,6 +118,7 @@ def run_bot():
     logger.debug("set logging level to %s", log_level)
     logging.getLogger("discord").setLevel("WARNING")
 
+    bot.status_reporters = []
     bot.add_cog(MusicCog(bot))
 
     # bot.on_command_error = handle_command_error

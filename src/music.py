@@ -118,8 +118,15 @@ class MusicCog(commands.Cog, name="Music"):
         self.voice_client = None
         self.is_shuffling = False
         self.playlists = _initialize_playlists()
+
+        bot.status_reporters.append(lambda: self.status())
+
         assert self.playlists["all"] is not None
         logger.debug("MusicCog initialized with %d songs", len(self.playlists["all"]))
+
+    def status(self) -> str:
+        assert self.playlists["all"] is not None
+        return f"with {len(self.playlists['all'])} songs"
 
     def _update_playlist(self, playlist: str, song_name: str, song_info: dict):
         if self.playlists[playlist] is None:
