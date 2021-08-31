@@ -7,13 +7,14 @@ from argparse import ArgumentParser
 
 import discord
 import toml
+from joke import jokes, quotes, facts
 from discord.ext import commands
 from discord.ext.commands import Bot as DiscordBot
 from discord.mentions import AllowedMentions
 
 from music import MusicCog
 
-BOT_VERSION = "0.3.0"
+BOT_VERSION = "0.4.0"
 
 intents = discord.Intents.default()
 bot = DiscordBot(
@@ -27,6 +28,16 @@ emojis = {
     "command_failed": "❌",
     "command_succeeded": "✅",
 }
+
+joke_pool = (
+    jokes.geek,
+    jokes.icanhazdad,
+    jokes.chucknorris,
+    jokes.icndb,
+    quotes.quotesondesign,
+    quotes.stormconsultancy,
+    facts.cat,
+)
 
 
 @bot.event
@@ -60,6 +71,16 @@ async def status(ctx: commands.Context):
     lines.extend(report() for report in bot.status_reporters)
     embed = discord.Embed(description='\n'.join(lines))
     await ctx.send(embed=embed)
+
+
+@bot.command(aliases=("j", "jk",))
+async def joke(ctx: commands.Context):
+    """
+    Tell a joke.
+    """
+    jokefn = random.choice(joke_pool)
+    content = await ctx.bot.loop.run_in_executor(None, jokefn)
+    ctx.reply(content)
 
 
 @bot.command()
