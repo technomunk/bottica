@@ -179,7 +179,7 @@ class MusicCog(commands.Cog, name="Music"):
             None,
             lambda: self.ytdl.extract_info(query, process=False, download=False),
         )
-        ctx.reply('Queueing...', delete_after=10)
+        await ctx.reply('Queueing...', delete_after=10)
         req_type = req.get("_type", "video")
         if req_type == "playlist":
             await self._queue_audio([entry for entry in req["entries"]])

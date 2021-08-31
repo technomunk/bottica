@@ -15,8 +15,7 @@ from music import MusicCog
 
 BOT_VERSION = "0.2.1"
 
-intents = discord.Intents.none()
-intents.guild_messages = True
+intents = discord.Intents.default()
 bot = DiscordBot(
     "b.",
     intents=intents,
