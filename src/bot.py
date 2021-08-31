@@ -17,6 +17,8 @@ from music import MusicCog
 BOT_VERSION = "0.4.0"
 
 intents = discord.Intents.default()
+intents.typing = False
+intents.presences = False
 bot = DiscordBot(
     "b.",
     intents=intents,
