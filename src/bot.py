@@ -80,7 +80,7 @@ async def joke(ctx: commands.Context):
     """
     jokefn = random.choice(joke_pool)
     content = await ctx.bot.loop.run_in_executor(None, jokefn)
-    ctx.reply(content)
+    await ctx.reply(content)
 
 
 @bot.command()
