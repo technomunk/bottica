@@ -52,8 +52,8 @@ def parse_playlist(filename: str) -> Playlist:
         return dict(parse_line(line) for line in file)
 
 
-def _initialize_playlists() -> Dict[str, Playlist]:
-    result = dict()
+def _initialize_playlists() -> Dict[str, Optional[Playlist]]:
+    result: Dict[str, Optional[Playlist]] = dict()
     if path.exists(LISTS_FOLDER):
         with scandir(LISTS_FOLDER) as entries:
             for entry in entries:
@@ -118,6 +118,7 @@ class MusicCog(commands.Cog, name="Music"):
         self.voice_client = None
         self.is_shuffling = False
         self.playlists = _initialize_playlists()
+        assert self.playlists["all"] is not None
         logger.debug("MusicCog initialized with %d songs", len(self.playlists["all"]))
 
     def _update_playlist(self, playlist: str, song_name: str, song_info: dict):
@@ -143,6 +144,7 @@ class MusicCog(commands.Cog, name="Music"):
 
         for info in infos:
             name = genname(info)
+            assert self.playlists["all"] is not None
             song = self.playlists["all"].get(name)
             if song:
                 self.song_queue.append((name, song[0]))
@@ -183,8 +185,9 @@ class MusicCog(commands.Cog, name="Music"):
         Play all downloaded songs.
         """
         self.voice_client = ctx.voice_client
-        playist = self.playlists["all"]
-        self.song_queue.extend((song, playist[song][0]) for song in playist)
+        playlist = self.playlists["all"]
+        assert playlist is not None
+        self.song_queue.extend((song, playlist[song][0]) for song in playlist)
         if not self.is_playing():
             self.play_next()
 
@@ -194,10 +197,11 @@ class MusicCog(commands.Cog, name="Music"):
         List queued songs.
         """
         MAX_LEN = 10
-        if self.is_playing():
+        if self.is_playing() and self.current_song is not None:
             idx = 0
             resp = ""
             for name, _ in itertools.chain((self.current_song,), self.song_queue):
+                assert self.playlists["all"] is not None
                 _, title = self.playlists["all"][name]
                 resp += f"{idx}: [{title}]({genlink(name)})\n"
                 idx += 1
