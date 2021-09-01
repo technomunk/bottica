@@ -12,6 +12,7 @@ from discord.ext import commands
 from youtube_dl import YoutubeDL
 
 import response
+from util import onoff
 
 DATA_FOLDER = "data/"
 AUDIO_FOLDER = DATA_FOLDER + "audio/"
@@ -126,7 +127,7 @@ class MusicCog(commands.Cog, name="Music"):
 
     def status(self) -> str:
         assert self.playlists["all"] is not None
-        return f"with {len(self.playlists['all'])} songs at the ready"
+        return f"with {len(self.playlists['all'])} songs at the ready\nand shuffling is {onoff(self.is_shuffling)}"
 
     def _update_playlist(self, playlist: str, song_name: str, song_info: dict):
         if self.playlists[playlist] is None:
@@ -254,16 +255,14 @@ class MusicCog(commands.Cog, name="Music"):
             await ctx.reply("Nothing is queued at the moment.")
 
     @commands.command()
-    async def shuffle(self, ctx: commands.context):
+    async def shuffle(self, ctx: commands.context, state: Optional[bool] = None):
         """
         Toggle shuffling of the queued playlist.
         """
-        self.is_shuffling = not self.is_shuffling
-        if self.is_shuffling:
-            resp = "Shuffling queued songs."
+        if state is None:
+            await ctx.reply(f"Shuffling is {onoff(self.is_shuffling)}")
         else:
-            resp = "Playing queued songs in order."
-        await ctx.reply(resp)
+            self.is_shuffling = state
 
     @commands.command(aliases=("n",))
     async def next(self, ctx: commands.Context):
