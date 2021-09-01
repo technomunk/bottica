@@ -211,8 +211,8 @@ class MusicCog(commands.Cog, name="Music"):
         if not ctx.voice_client.is_paused():
             ctx.voice_client.pause()
 
-    @commands.command()
-    async def unpause(self, ctx: commands.Context):
+    @commands.command(aliases=("unpause",))
+    async def resume(self, ctx: commands.Context):
         """
         Resume paused playback.
         """
