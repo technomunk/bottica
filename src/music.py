@@ -41,6 +41,10 @@ def check_author_is_dj(ctx: commands.Context) -> bool:
     return "@dj" in (role.name for role in ctx.author.roles)
 
 
+def check_bot_is_voice_connected(ctx: commands.Context) -> bool:
+    return ctx.voice_client is not None and ctx.voice_client.is_connected()
+
+
 Playlist = Dict[str, Tuple[str, str]]
 
 
@@ -180,12 +184,14 @@ class MusicCog(commands.Cog, name="Music"):
             None,
             lambda: self.ytdl.extract_info(query, process=False, download=False),
         )
-        await ctx.reply('Queueing...', delete_after=10)
+        self.bot.loop.create_task(ctx.reply('Queueing...', delete_after=10))
         req_type = req.get("_type", "video")
         if req_type == "playlist":
-            await self._queue_audio([entry for entry in req["entries"]])
+            self.bot.loop.create_task(
+                self._queue_audio([entry for entry in req["entries"]])
+            )
         else:
-            await self._queue_audio([req])
+            self.bot.loop.create_task(self._queue_audio([req]))
 
     @commands.command(aliases=("pa",))
     @commands.check(check_author_is_voice_connected)
@@ -201,24 +207,20 @@ class MusicCog(commands.Cog, name="Music"):
             self.play_next()
 
     @commands.command()
+    @commands.check(check_bot_is_voice_connected)
     async def pause(self, ctx: commands.Context):
         """
         Pause current playback.
         """
-        if ctx.voice_client is None:
-            return await ctx.reply("Nothing is queued.", delete_after=10)
-
         if not ctx.voice_client.is_paused():
             ctx.voice_client.pause()
 
     @commands.command(aliases=("unpause",))
+    @commands.check(check_bot_is_voice_connected)
     async def resume(self, ctx: commands.Context):
         """
         Resume paused playback.
         """
-        if ctx.voice_client is None:
-            return await ctx.reply("Nothing is queued.", delete_after=10)
-
         if ctx.voice_client.is_paused():
             ctx.voice_client.resume()
 
@@ -250,9 +252,21 @@ class MusicCog(commands.Cog, name="Music"):
                 if idx >= MAX_LEN:
                     break
             title = f"Song queue ({idx}/{len(self.song_queue)+1})"
-            await ctx.reply(embed=discord.Embed(title=title, description=resp))
+            self.bot.loop.create_task(
+                ctx.reply(embed=discord.Embed(title=title, description=resp))
+            )
         else:
-            await ctx.reply("Nothing is queued at the moment.")
+            self.bot.loop.create_task(ctx.reply("Nothing is queued at the moment."))
+
+    @commands.command()
+    @commands.check(check_bot_is_voice_connected)
+    async def song(self, ctx: commands.Context):
+        """
+        Display information about the current song.
+        """
+        if self.current_song:
+            embed = discord.Embed(title=genlink(self.current_song[0]))
+            self.bot.loop.create_task(ctx.reply(embed=embed))
 
     @commands.command()
     async def shuffle(self, ctx: commands.context, state: Optional[bool] = None):
@@ -260,7 +274,9 @@ class MusicCog(commands.Cog, name="Music"):
         Toggle shuffling of the queued playlist.
         """
         if state is None:
-            await ctx.reply(f"Shuffling is {onoff(self.is_shuffling)}")
+            self.bot.loop.create_task(
+                ctx.reply(f"Shuffling is {onoff(self.is_shuffling)}")
+            )
         else:
             self.is_shuffling = state
 
@@ -270,8 +286,8 @@ class MusicCog(commands.Cog, name="Music"):
         Skip the current song.
         """
         if not self.is_playing():
-            return await ctx.reply(
-                "I'm not playing anything." + random.choice(response.FAILS)
+            self.bot.loop.create_task(
+                ctx.reply("I'm not playing anything." + random.choice(response.FAILS))
             )
         self.play_next()
 

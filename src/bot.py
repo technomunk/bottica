@@ -14,7 +14,7 @@ from discord.mentions import AllowedMentions
 
 from music import MusicCog
 
-BOT_VERSION = "0.4.2"
+BOT_VERSION = "0.5.0"
 
 intents = discord.Intents.default()
 intents.typing = False
@@ -54,13 +54,15 @@ async def on_ready():
 @bot.before_invoke
 async def pre_invoke(ctx: commands.Context):
     logger.info('calling "%s"', ctx.message.content)
-    await ctx.message.add_reaction(emojis["command_heard"])
+    bot.loop.create_task(ctx.message.add_reaction(emojis["command_heard"]))
 
 
 @bot.after_invoke
 async def post_invoke(ctx: commands.Context):
-    await ctx.message.add_reaction(
-        emojis["command_failed"] if ctx.command_failed else emojis["command_succeeded"]
+    bot.loop.create_task(
+        ctx.message.add_reaction(
+            emojis["command_failed"] if ctx.command_failed else emojis["command_succeeded"]
+        )
     )
 
 
@@ -72,7 +74,7 @@ async def status(ctx: commands.Context):
     lines = [f"Running version `{BOT_VERSION}`"]
     lines.extend(report() for report in bot.status_reporters)
     embed = discord.Embed(description='\n'.join(lines))
-    await ctx.send(embed=embed)
+    bot.loop.create_task(ctx.send(embed=embed))
 
 
 @bot.command(aliases=("j", "jk",))
@@ -82,7 +84,7 @@ async def joke(ctx: commands.Context):
     """
     jokefn = random.choice(joke_pool)
     content = await ctx.bot.loop.run_in_executor(None, jokefn)
-    await ctx.reply(content)
+    bot.loop.create_task(ctx.reply(content))
 
 
 @bot.command()
@@ -94,7 +96,7 @@ async def rate(ctx: commands.Context, user: discord.Member):
         rating = 10
     else:
         rating = random.randint(1, 9)
-    await ctx.send(f"{user.mention} is {rating}/10.")
+    bot.loop.create_task(ctx.send(f"{user.mention} is {rating}/10."))
 
 
 def run_bot():
