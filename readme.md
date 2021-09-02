@@ -14,3 +14,8 @@ A personal discord bot.
 
 - Activate virtual environment: `source <venv>/Scripts/activate`
 - Run the bot: `python3 src/bot.py`
+
+## Wishlist
+
+- Active queue message (updates as songs change)
+- Active song message (updates as songs change)
