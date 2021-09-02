@@ -266,7 +266,7 @@ class MusicCog(commands.Cog, name="Music"):
         """
         if self.current_song:
             _, title = self.playlists["all"][self.current_song[0]]
-            embed = discord.Embed(title=f"[{title}]({genlink(self.current_song[0])})")
+            embed = discord.Embed(description=f"[{title}]({genlink(self.current_song[0])})")
             self.bot.loop.create_task(ctx.reply(embed=embed))
 
     @commands.command()
