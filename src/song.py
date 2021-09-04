@@ -8,7 +8,7 @@ from typing import Deque, Dict, Generator, Iterable, Optional, Set, Tuple, cast
 
 FILE_ENCODING = "utf8"
 
-logger = logging.Logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 SongKey = Tuple[str, str]
@@ -58,7 +58,7 @@ class SongInfo:
 
     @classmethod
     def from_line(cls, line: str) -> SongInfo:
-        [domain, id, ext, dur, title] = line.split(maxsplit=4)
+        [domain, id, ext, dur, title] = line.strip().split(maxsplit=4)
         duration = int(dur)
         return cls(domain, id, ext, duration, title)
 
@@ -110,7 +110,6 @@ class SongRegistry:
         return (self[key] for key in self._data)
 
     def put(self, song: SongInfo) -> None:
-        logger.debug(f'putting {song}')
         self._data[song.key] = (song.ext, song.duration, song.title)
         with open(self._filename, "a", encoding=FILE_ENCODING) as file:
             file.write(song.to_line())
@@ -130,9 +129,11 @@ class _SongKeyCollection:
 
     def _keys_in(self, lines: Iterable[str]) -> Generator[SongKey, None, None]:
         for line in lines:
-            key = cast(SongKey, tuple(line.split(maxsplit=1)))
+            key = cast(SongKey, tuple(line.strip().split(maxsplit=1)))
             if key in self._registry:
                 yield key
+            else:
+                logger.warning("%s not found in song registry!", key)
 
 
 class SongQueue(_SongKeyCollection):
@@ -220,6 +221,9 @@ class SongSet(_SongKeyCollection):
         with open(self.filename, "a", encoding=FILE_ENCODING) as file:
             file.write(keystr(song.key))
             file.write("\n")
+
+    def __len__(self) -> int:
+        return len(self._data)
 
     def __iter__(self) -> Generator[SongInfo, None, None]:
         return (self._registry[key] for key in self._data)

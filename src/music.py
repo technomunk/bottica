@@ -2,9 +2,8 @@
 
 import logging
 import random
-from dataclasses import dataclass
 from os import makedirs
-from typing import Any, Coroutine, Dict, List, Optional, Tuple
+from typing import Any, Coroutine, Dict, Iterable, List, Optional, Tuple
 
 import discord
 from discord.ext import commands
@@ -62,20 +61,17 @@ def extract_song_info(info: dict) -> SongInfo:
     return SongInfo(domain, id, info["ext"], info["duration"], info["title"])
 
 
-@dataclass
 class MusicGuildState:
     """
     Musical state relevant to a single guild.
     """
-    __slots__ = ("queue", "song_set", "is_shuffling", "song_message")
-    queue: SongQueue
-    song_set: SongSet
-    is_shuffling: bool = False
-    song_message: Optional[discord.Message] = None
+    __slots__ = ("queue", "set", "is_shuffling", "song_message")
 
     def __init__(self, registry: SongRegistry, guild_id: int) -> None:
         self.queue = SongQueue(registry)
-        self.song_set = SongSet(registry, f"{GUILD_SET_FOLDER}{guild_id}.txt")
+        self.set = SongSet(registry, f"{GUILD_SET_FOLDER}{guild_id}.txt")
+        self.is_shuffling = False
+        self.song_message: Optional[discord.Message] = None
 
 
 class MusicContext:
@@ -166,7 +162,7 @@ class MusicContext:
             after=handle_after,
         )
         if self.song_message:
-            self.task(self.display_song_info(True))
+            self.task(self.display_current_song_info(True))
 
     @property
     def song_queue(self) -> SongQueue:
@@ -174,7 +170,7 @@ class MusicContext:
 
     @property
     def song_set(self) -> SongSet:
-        return self.state.song_set
+        return self.state.set
 
     @property
     def voice_client(self) -> Optional[discord.VoiceClient]:
@@ -209,21 +205,33 @@ class MusicCog(commands.Cog, name="Music"):
             "quiet": True,
         }
         self.ytdl = YoutubeDL(ytdl_options)
-        self.songs = SongRegistry(SONG_REGISTRY_FILENAME)
+        self.song_registry = SongRegistry(SONG_REGISTRY_FILENAME)
         self.guild_states: Dict[int, MusicGuildState] = {}
 
         makedirs(AUDIO_FOLDER, exist_ok=True)
         makedirs(GUILD_SET_FOLDER, exist_ok=True)
 
-        bot.status_reporters.append(lambda ctx: self.status(ctx))
-        logger.debug("MusicCog initialized with %d songs", len(self.songs))
-
     def _wrap_context(self, ctx: commands.Context) -> MusicContext:
-        return MusicContext(ctx, self.registry, self.guild_states)
+        return MusicContext(ctx, self.song_registry, self.guild_states)
 
-    def status(self, ctx: commands.Context) -> str:
-        is_shuffling = self.guild_states[ctx.guild.id].is_shuffling
-        return f"with {len(self.songs)} songs at the ready\nshuffling is {onoff(is_shuffling)}"
+    @commands.Cog.listener()
+    async def on_ready(self):
+        self.guild_states = {
+            guild.id: MusicGuildState(self.song_registry, guild.id) for guild in self.bot.guilds
+        }
+        logger.info(
+            "MusicCog initialized with %d songs and %d states",
+            len(self.song_registry),
+            len(self.guild_states),
+        )
+        self.bot.status_reporters.append(lambda ctx: self.status(ctx))
+
+    def status(self, ctx: commands.Context) -> Iterable[str]:
+        state = self.guild_states[ctx.guild.id]
+        return (
+            f"{len(state.set)} songs in guild set",
+            f"Shuffling is `{onoff(state.is_shuffling)}`",
+        )
 
     async def _queue_audio(self, ctx: MusicContext, infos: List[dict]):
         logger.debug("queueing %s", "playlist" if len(infos) > 1 else "song")
@@ -236,14 +244,14 @@ class MusicCog(commands.Cog, name="Music"):
 
         for info in infos:
             key = extract_key(info)
-            song = self.songs.get(key)
+            song = self.song_registry.get(key)
             if song is None:
                 logger.debug("downloading '%s'", key)
                 song_info = await self.bot.loop.run_in_executor(
                     None, lambda: self.ytdl.process_ie_result(info)
                 )
                 song = extract_song_info(song_info)
-                self.songs.put(song)
+                self.song_registry.put(song)
             ctx.song_set.add(song)
             ctx.song_queue.push(song)
             if not ctx.is_playing():
@@ -261,13 +269,13 @@ class MusicCog(commands.Cog, name="Music"):
             lambda: self.ytdl.extract_info(query, process=False, download=False),
         )
         req_type = req.get("_type", "video")
-        ctx = self._wrap_context(ctx)
+        mctx = self._wrap_context(ctx)
         if req_type == "playlist":
             self.bot.loop.create_task(
-                self._queue_audio(ctx, [entry for entry in req["entries"]])
+                self._queue_audio(mctx, [entry for entry in req["entries"]])
             )
         else:
-            self.bot.loop.create_task(self._queue_audio(ctx, [req]))
+            self.bot.loop.create_task(self._queue_audio(mctx, [req]))
 
     @commands.command(aliases=("pa",))
     @commands.check(check_author_is_voice_connected)
@@ -275,10 +283,10 @@ class MusicCog(commands.Cog, name="Music"):
         """
         Play all songs that were ever queued on this server.
         """
-        ctx = self._wrap_context(ctx)
-        ctx.song_queue.extend(ctx.song_set)
-        if not ctx.is_playing():
-            self.play_next()
+        mctx = self._wrap_context(ctx)
+        mctx.song_queue.extend(mctx.song_set)
+        if not mctx.is_playing():
+            mctx.play_next()
 
     @commands.command()
     @commands.check(check_bot_is_voice_connected)
@@ -304,8 +312,8 @@ class MusicCog(commands.Cog, name="Music"):
         """
         Drop any songs queued for playback.
         """
-        ctx = self._wrap_context(ctx)
-        ctx.song_queue.clear()
+        mctx = self._wrap_context(ctx)
+        mctx.song_queue.clear()
         if ctx.voice_client is not None:
             ctx.voice_client.stop()
 
@@ -314,9 +322,9 @@ class MusicCog(commands.Cog, name="Music"):
         """
         Display information about the current song.
         """
-        ctx = self._wrap_context(ctx)
-        if ctx.is_playing() and ctx.song_queue.head is not None:
-            self.bot.loop.create_task(ctx.display_song_info(active))
+        mctx = self._wrap_context(ctx)
+        if mctx.is_playing() and mctx.song_queue.head is not None:
+            self.bot.loop.create_task(mctx.display_current_song_info(active))
         else:
             self.bot.loop.create_task(
                 ctx.reply("Not playing anything at the moment.")
@@ -327,10 +335,10 @@ class MusicCog(commands.Cog, name="Music"):
         """
         Display information about the current song queue.
         """
-        ctx = self._wrap_context(ctx)
-        if ctx.is_playing() and ctx.song_queue:
-            durstr = format_duration(ctx.song_queue.duration)
-            desc = f"Queued {len(ctx.song_queue)} songs ({durstr})."
+        mctx = self._wrap_context(ctx)
+        if mctx.is_playing() and mctx.song_queue:
+            durstr = format_duration(mctx.song_queue.duration)
+            desc = f"Queued {len(mctx.song_queue)} songs ({durstr})."
             embed = discord.Embed(description=desc)
             self.bot.loop.create_task(ctx.reply(embed=embed))
         else:
@@ -341,22 +349,22 @@ class MusicCog(commands.Cog, name="Music"):
         """
         Toggle shuffling of the queued playlist.
         """
-        ctx = self._wrap_context(ctx)
+        mctx = self._wrap_context(ctx)
         if state is None:
             self.bot.loop.create_task(
-                ctx.reply(f"Shuffling is {onoff(ctx.is_shuffling)}")
+                ctx.reply(f"Shuffling is `{onoff(mctx.is_shuffling)}`")
             )
         else:
-            ctx.is_shuffling = state
+            mctx.is_shuffling = state
 
     @commands.command(aliases=("n",))
     async def next(self, ctx: commands.Context):
         """
         Skip the current song.
         """
-        ctx = self._wrap_context(ctx)
-        if not ctx.is_playing():
+        mctx = self._wrap_context(ctx)
+        if not mctx.is_playing():
             self.bot.loop.create_task(
                 ctx.reply("I'm not playing anything." + random.choice(response.FAILS))
             )
-        ctx.play_next()
+        mctx.play_next()

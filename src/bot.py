@@ -14,7 +14,7 @@ from discord.mentions import AllowedMentions
 
 from music import MusicCog
 
-BOT_VERSION = "0.6.4"
+BOT_VERSION = "0.6.6"
 
 intents = discord.Intents.default()
 intents.typing = False
@@ -72,7 +72,8 @@ async def status(ctx: commands.Context):
     Print the bot status.
     """
     lines = [f"Running version `{BOT_VERSION}`"]
-    lines.extend(report(ctx) for report in bot.status_reporters)
+    for reporter in bot.status_reporters:
+        lines.extend(reporter(ctx))
     embed = discord.Embed(description='\n'.join(lines))
     bot.loop.create_task(ctx.send(embed=embed))
 
