@@ -151,8 +151,8 @@ class SongQueue:
         Returns the new head.
         """
         if self.tail:
-            assert self.head is not None
-            self.duration -= self.head.duration
+            if self.head is not None:
+                self.duration -= self.head.duration
             idx = randrange(len(self.tail))
             self.head = self.tail[idx]
             del self.tail[idx]
