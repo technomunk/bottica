@@ -244,7 +244,7 @@ class MusicCog(commands.Cog, name="Music"):
                 )
                 song = extract_song_info(song_info)
                 self.songs.put(song)
-                ctx.song_set.add(song)
+            ctx.song_set.add(song)
             ctx.song_queue.push(song)
             if not ctx.is_playing():
                 ctx.play_next()
