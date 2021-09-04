@@ -347,7 +347,10 @@ class MusicCog(commands.Cog, name="Music"):
     @commands.command()
     async def shuffle(self, ctx: commands.context, state: Optional[bool] = None):
         """
-        Toggle shuffling of the queued playlist.
+        Manipulate whether the queued songs should be shuffled.
+        Sets the shuffling of the queue to provided value or prints whether the queue
+        is currently being shuffled. While the queue is shuffled the songs will come
+        in random order.
         """
         mctx = self._wrap_context(ctx)
         if state is None:
