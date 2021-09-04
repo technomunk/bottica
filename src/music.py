@@ -199,9 +199,11 @@ class MusicCog(commands.Cog, name="Music"):
         return f"with {len(self.songs)} songs at the ready\nshuffling is {onoff(is_shuffling)}"
 
     async def _queue_audio(self, ctx: MusicContext, infos: List[dict]):
-        logger.debug("queueing audio")
+        logger.debug("queueing %s", "playlist" if len(infos) > 1 else "song")
 
+        print(f"shuffle: {ctx.is_shuffling}, playing: {ctx.is_playing()}, len(infos): {len(infos)}")
         if ctx.is_shuffling and not ctx.is_playing() and len(infos) > 1:
+            logger.debug("randomizing first song")
             idx = random.randrange(len(infos))
             if idx != 0:
                 infos[0], infos[idx] = infos[idx], infos[0]
@@ -234,7 +236,6 @@ class MusicCog(commands.Cog, name="Music"):
         req_type = req.get("_type", "video")
         ctx = self._wrap_context(ctx)
         if req_type == "playlist":
-            logger.debug("queueing playlist")
             self.bot.loop.create_task(
                 self._queue_audio(ctx, [entry for entry in req["entries"]])
             )
@@ -314,13 +315,13 @@ class MusicCog(commands.Cog, name="Music"):
         """
         Toggle shuffling of the queued playlist.
         """
+        ctx = self._wrap_context(ctx)
         if state is None:
-            ctx = self._wrap_context(ctx)
             self.bot.loop.create_task(
                 ctx.reply(f"Shuffling is {onoff(ctx.is_shuffling)}")
             )
         else:
-            self.is_shuffling = state
+            ctx.is_shuffling = state
 
     @commands.command(aliases=("n",))
     async def next(self, ctx: commands.Context):
