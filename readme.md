@@ -18,5 +18,10 @@ A personal discord bot.
 ## Wishlist
 
 - Active queue message (updates as songs change)
-- Active song message (updates as songs change)
 - Guess the song game
+- Emojifier
+
+## Contributing
+
+- Submit issues with wished functionality or problems encountered during use
+- Fork the repo and make an upstream PR with your own changes
