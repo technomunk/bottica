@@ -1,22 +1,22 @@
 # Music-playing Cog for the bot
 
-import itertools
 import logging
 import random
-from collections import deque
-from os import makedirs, path, scandir
-from typing import Deque, Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from os import makedirs
+from typing import Any, Coroutine, Dict, List, Optional, Tuple
 
 import discord
 from discord.ext import commands
 from youtube_dl import YoutubeDL
 
 import response
-from util import onoff
+from song import SongInfo, SongQueue, SongRegistry
+from util import format_duration, onoff
 
 DATA_FOLDER = "data/"
 AUDIO_FOLDER = DATA_FOLDER + "audio/"
-LISTS_FOLDER = DATA_FOLDER + "lists/"
+SONG_REGISTRY_FILENAME = DATA_FOLDER + "songs.txt"
 
 logger = logging.getLogger(__name__)
 
@@ -45,65 +45,130 @@ def check_bot_is_voice_connected(ctx: commands.Context) -> bool:
     return ctx.voice_client is not None and ctx.voice_client.is_connected()
 
 
-Playlist = Dict[str, Tuple[str, str]]
-
-
-def parse_playlist(filename: str) -> Playlist:
-    def parse_line(line: str):
-        els = line.split(maxsplit=3)
-        return (f"{els[0]}_{els[1]}", (els[2], els[3].strip()))
-
-    with open(filename, "r", encoding="utf8") as file:
-        return dict(parse_line(line) for line in file)
-
-
-def _initialize_playlists() -> Dict[str, Optional[Playlist]]:
-    result: Dict[str, Optional[Playlist]] = dict()
-    if path.exists(LISTS_FOLDER):
-        with scandir(LISTS_FOLDER) as entries:
-            for entry in entries:
-                if entry.is_file() and entry.name.endswith(".txt"):
-                    result[entry.name[:-4]] = None
-    else:
-        makedirs(LISTS_FOLDER)
-
-    playlist_all_filename = LISTS_FOLDER + "all.txt"
-    if "all" in result:
-        result["all"] = parse_playlist(playlist_all_filename)
-    else:
-        with open(playlist_all_filename, "w", encoding="utf8") as file:
-            assert file
-        result["all"] = dict()
-    return result
-
-
-def genname(info: dict) -> str:
+def extract_key(info: dict) -> Tuple[str, str]:
     """
-    Generate name for a given song.
+    Generate key for a given song.
     """
     info_type = info.get("_type", "video")
     if info_type not in ("video", "url"):
         raise NotImplementedError(f"genname(info['_type']: '{info_type}')")
     domain = info.get("ie_key", info.get("extractor_key")).lower()
-    return f"{domain}_{info['id']}"
+    return (domain, info["id"])
 
 
-def genline(info: dict) -> str:
-    """
-    Generate playlist entry line for a given song.
-    """
-    domain = info.get("ie_key", info.get("extractor_key")).lower()
-    return " ".join((domain, info["id"], info["ext"], info["title"]))
+def extract_song_info(info: dict) -> SongInfo:
+    domain, id = extract_key(info)
+    return SongInfo(domain, id, info["ext"], info["duration"], info["title"])
 
 
-def genlink(song: str) -> str:
+@dataclass
+class MusicGuildState:
     """
-    Generate a clickable link to the song with provided id.
+    Musical state relevant to a single guild.
     """
-    [domain, id] = song.split("_", maxsplit=1)
-    if domain != "youtube":
-        raise NotImplementedError("genlink(song: domain != youtube)")
-    return f"https://www.{domain}.com/watch?v={id}"
+    queue: SongQueue = SongQueue()
+    is_shuffling: bool = False
+    song_message: Optional[discord.Message] = None
+
+
+class MusicContext:
+    def __init__(self, ctx: commands.Context, states: Dict[int, MusicGuildState]):
+        self.ctx = ctx
+        self.state = states.setdefault(self.ctx.guild.id, MusicGuildState())
+
+    def is_playing(self) -> bool:
+        return (
+            self.ctx.voice_client is not None
+            and self.ctx.voice_client.is_playing()
+        )
+
+    def task(self, task: Coroutine) -> None:
+        self.ctx.bot.loop.create_task(task)
+
+    def __getattr__(self, name: str) -> Any:
+        if name in self.__dict__:
+            return getattr(self, name)
+        return getattr(self.ctx, name)
+
+    async def display_song_info(self, active: bool) -> None:
+        assert self.song_queue.head is not None
+        song = self.song_queue.head
+        embed = discord.Embed(description=self.ctx.cog.songs[song.key].pretty_link)
+
+        reuse = False
+        if active and self.song_message is not None:
+            hist = await self.ctx.history(limit=1).flatten()
+            reuse = hist[0] == self.song_message
+
+        if reuse:
+            assert self.song_message is not None
+            self.task(self.song_message.edit(embed=embed))
+        elif active:
+            if self.song_message:
+                self.task(self.song_message.delete())
+            self.song_message = await(self.ctx.send(embed=embed))
+        else:
+            self.song_message = None
+            self.task(self.ctx.send(embed=embed))
+
+    def play_next(self) -> None:
+        """
+        Play the next song in the queue.
+        """
+        if self.voice_client is None or self.voice_client.channel is None:
+            raise RuntimeError("Bot is not connected to voice to play.")
+
+        if not self.voice_client.is_connected():
+            raise RuntimeError("Bot is not connected to a voice chennel.")
+
+        song = self.song_queue.pop_random() if self.is_shuffling else self.song_queue.pop()
+        if song is None:
+            if self.is_playing():
+                self.voice_client.stop()
+            if self.song_message:
+                self.task(self.song_message.delete())
+            return
+
+        if self.is_playing():
+            self.voice_client.pause()
+
+        def handle_after(error):
+            if error is None:
+                self.play_next()
+            else:
+                logger.error("encountered error: %s", error)
+
+        logger.debug("playing %s", song.key)
+        self.voice_client.play(
+            discord.FFmpegPCMAudio(f"{AUDIO_FOLDER}{song.filename}", options="-vn"),
+            after=handle_after,
+        )
+        if self.song_message:
+            self.task(self.display_song_info(True))
+
+    @property
+    def song_queue(self) -> SongQueue:
+        return self.state.queue
+
+    @property
+    def voice_client(self) -> Optional[discord.VoiceClient]:
+        return self.ctx.voice_client
+
+    @property
+    def is_shuffling(self) -> bool:
+        return self.state.is_shuffling
+
+    @is_shuffling.setter
+    def is_shuffling(self, value: bool) -> None:
+        self.state.is_shuffling = value
+
+    @property
+    def song_message(self) -> Optional[discord.Message]:
+        return self.state.song_message
+
+    @song_message.setter
+    def song_message(self, value: Optional[discord.Message]):
+        self.state.song_message = value
 
 
 class MusicCog(commands.Cog, name="Music"):
@@ -118,59 +183,41 @@ class MusicCog(commands.Cog, name="Music"):
             "quiet": True,
         }
         self.ytdl = YoutubeDL(ytdl_options)
-        self.current_song: Optional[Tuple[str, str]] = None
-        self.song_queue: Deque[Tuple[str, str]] = deque()
-        self.voice_client = None
-        self.is_shuffling = False
-        self.playlists = _initialize_playlists()
+        self.songs = SongRegistry(SONG_REGISTRY_FILENAME)
+        self.guild_states: Dict[int, MusicGuildState] = {}
 
-        bot.status_reporters.append(lambda: self.status())
+        makedirs(AUDIO_FOLDER, exist_ok=True)
 
-        assert self.playlists["all"] is not None
-        logger.debug("MusicCog initialized with %d songs", len(self.playlists["all"]))
+        bot.status_reporters.append(lambda ctx: self.status(ctx))
+        logger.debug("MusicCog initialized with %d songs", len(self.songs))
 
-    def status(self) -> str:
-        assert self.playlists["all"] is not None
-        return f"with {len(self.playlists['all'])} songs at the ready\nand shuffling is {onoff(self.is_shuffling)}"
+    def _wrap_context(self, ctx: commands.Context) -> MusicContext:
+        return MusicContext(ctx, self.guild_states)
 
-    def _update_playlist(self, playlist: str, song_name: str, song_info: dict):
-        if self.playlists[playlist] is None:
-            raise NotImplementedError("_update_playlist(new)")
-        update_file = False
-        if song_name in self.playlists[playlist]:
-            update_file = True
-        self.playlists[playlist][song_name] = (song_info["ext"], song_info["title"])
-        if update_file:
-            raise NotImplementedError("update file in _update_playlist()")
-        else:
-            with open(f"{LISTS_FOLDER}{playlist}.txt", "a", encoding="utf8") as file:
-                file.write(genline(song_info))
-                file.write("\n")
+    def status(self, ctx: commands.Context) -> str:
+        is_shuffling = self.guild_states[ctx.guild.id]
+        return f"with {len(self.songs)} songs at the ready\nshuffling is {onoff(is_shuffling)}"
 
-    async def _queue_audio(self, infos: List[dict]):
+    async def _queue_audio(self, ctx: MusicContext, infos: List[dict]):
         logger.debug("queueing audio")
 
-        if self.is_shuffling and not self.is_playing() and len(infos) > 1:
+        if ctx.is_shuffling and not ctx.is_playing() and len(infos) > 1:
             idx = random.randrange(1, len(infos))
             infos[0], infos[idx] = infos[idx], infos[0]
 
         for info in infos:
-            name = genname(info)
-            assert self.playlists["all"] is not None
-            song = self.playlists["all"].get(name)
-            if song:
-                self.song_queue.append((name, song[0]))
-            else:
+            key = extract_key(info)
+            song = self.songs.get(key)
+            if song is None:
+                logger.debug("downloading '%s'", key)
                 song_info = await self.bot.loop.run_in_executor(
                     None, lambda: self.ytdl.process_ie_result(info)
                 )
-                self._update_playlist("all", name, song_info)
-                self.song_queue.append((name, song_info["ext"]))
-            if not self.is_playing():
-                self.play_next()
-
-    def is_playing(self):
-        return self.voice_client is not None and self.voice_client.is_playing()
+                song = extract_song_info(song_info)
+                self.songs.put(song)
+            ctx.song_queue.push(song.brief)
+            if not ctx.is_playing():
+                ctx.play_next()
 
     @commands.command(aliases=("p",))
     @commands.check(check_author_is_voice_connected)
@@ -178,20 +225,20 @@ class MusicCog(commands.Cog, name="Music"):
         """
         Play songs found at provided query.
         """
-        self.voice_client = ctx.voice_client
         # download should be run asynchronously as to avoid blocking the bot
         req = await self.bot.loop.run_in_executor(
             None,
             lambda: self.ytdl.extract_info(query, process=False, download=False),
         )
-        self.bot.loop.create_task(ctx.reply('Queueing...', delete_after=10))
         req_type = req.get("_type", "video")
+        ctx = self._wrap_context(ctx)
         if req_type == "playlist":
+            logger.debug("queueing playlist")
             self.bot.loop.create_task(
-                self._queue_audio([entry for entry in req["entries"]])
+                self._queue_audio(ctx, [entry for entry in req["entries"]])
             )
         else:
-            self.bot.loop.create_task(self._queue_audio([req]))
+            self.bot.loop.create_task(self._queue_audio(ctx, [req]))
 
     @commands.command(aliases=("pa",))
     @commands.check(check_author_is_voice_connected)
@@ -199,11 +246,11 @@ class MusicCog(commands.Cog, name="Music"):
         """
         Play all downloaded songs.
         """
-        self.voice_client = ctx.voice_client
-        playlist = self.playlists["all"]
-        assert playlist is not None
-        self.song_queue.extend((song, playlist[song][0]) for song in playlist)
-        if not self.is_playing():
+        ctx = self._wrap_context(ctx)
+        ctx.song_queue.extend(
+            (song.key, song.ext, song.duration) for song in self.songs
+        )
+        if not ctx.is_playing():
             self.play_next()
 
     @commands.command()
@@ -230,44 +277,36 @@ class MusicCog(commands.Cog, name="Music"):
         """
         Drop any songs queued for playback.
         """
-        self.song_queue.clear()
-        self.current_song = None
+        ctx = self._wrap_context(ctx)
+        ctx.song_queue.clear()
         if ctx.voice_client is not None:
             ctx.voice_client.stop()
+
+    @commands.command()
+    async def song(self, ctx: commands.Context, active: bool = False):
+        """
+        Display information about the current song.
+        """
+        ctx = self._wrap_context(ctx)
+        if ctx.is_playing() and ctx.song_queue.head is not None:
+            self.bot.loop.create_task(ctx.display_song_info(active))
+        else:
+            self.bot.loop.create_task(
+                ctx.reply("Not playing anything at the moment.")
+            )
 
     @commands.command(aliases=("q",))
     async def queue(self, ctx: commands.Context):
         """
-        List queued songs.
+        Display information about the current song queue.
         """
-        MAX_LEN = 10
-        if self.is_playing() and self.current_song is not None:
-            idx = 0
-            resp = ""
-            for name, _ in itertools.chain((self.current_song,), self.song_queue):
-                assert self.playlists["all"] is not None
-                _, title = self.playlists["all"][name]
-                resp += f"{idx}: [{title}]({genlink(name)})\n"
-                idx += 1
-                if idx >= MAX_LEN:
-                    break
-            title = f"Song queue ({idx}/{len(self.song_queue)+1})"
-            self.bot.loop.create_task(
-                ctx.reply(embed=discord.Embed(title=title, description=resp))
-            )
-        else:
-            self.bot.loop.create_task(ctx.reply("Nothing is queued at the moment."))
-
-    @commands.command()
-    @commands.check(check_bot_is_voice_connected)
-    async def song(self, ctx: commands.Context):
-        """
-        Display information about the current song.
-        """
-        if self.current_song:
-            _, title = self.playlists["all"][self.current_song[0]]
-            embed = discord.Embed(description=f"[{title}]({genlink(self.current_song[0])})")
+        ctx = self._wrap_context(ctx)
+        if ctx.is_playing() and ctx.song_queue:
+            desc = f"Queued {len(ctx.song_queue)} songs ({format_duration(ctx.song_queue.duration)})."
+            embed = discord.Embed(description=desc)
             self.bot.loop.create_task(ctx.reply(embed=embed))
+        else:
+            self.bot.loop.create_task(ctx.reply("Nothing queued at the moment."))
 
     @commands.command()
     async def shuffle(self, ctx: commands.context, state: Optional[bool] = None):
@@ -275,8 +314,9 @@ class MusicCog(commands.Cog, name="Music"):
         Toggle shuffling of the queued playlist.
         """
         if state is None:
+            ctx = self._wrap_context(ctx)
             self.bot.loop.create_task(
-                ctx.reply(f"Shuffling is {onoff(self.is_shuffling)}")
+                ctx.reply(f"Shuffling is {onoff(ctx.is_shuffling)}")
             )
         else:
             self.is_shuffling = state
@@ -286,50 +326,9 @@ class MusicCog(commands.Cog, name="Music"):
         """
         Skip the current song.
         """
-        if not self.is_playing():
+        ctx = self._wrap_context(ctx)
+        if not ctx.is_playing():
             self.bot.loop.create_task(
                 ctx.reply("I'm not playing anything." + random.choice(response.FAILS))
             )
-        self.play_next()
-
-    def play_next(self):
-        """
-        Play the next song in the queue.
-        """
-        if self.voice_client is None or self.voice_client.channel is None:
-            raise RuntimeError("Bot is not connected to voice to play.")
-
-        if not self.voice_client.is_connected():
-            raise RuntimeError("Bot is not connected to a voice chennel.")
-
-        if not self.song_queue:
-            if self.is_playing():
-                self.voice_client.stop()
-            self.current_song = None
-            return
-
-        if self.is_shuffling:
-            idx = random.randrange(len(self.song_queue))
-            name, ext = self.song_queue[idx]
-            del self.song_queue[idx]
-        else:
-            name, ext = self.song_queue.popleft()
-
-        if not name:
-            raise RuntimeError("Attempted to play an empty file!")
-
-        if self.is_playing():
-            self.voice_client.pause()
-
-        def handle_after(error):
-            if error is None:
-                self.play_next()
-            else:
-                logger.error("encountered error: %s", error)
-
-        logger.debug("playing %s", name)
-        self.voice_client.play(
-            discord.FFmpegPCMAudio(f"{AUDIO_FOLDER}{name}.{ext}", options="-vn"),
-            after=handle_after,
-        )
-        self.current_song = (name, ext)
+        ctx.play_next()

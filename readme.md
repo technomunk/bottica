@@ -19,3 +19,4 @@ A personal discord bot.
 
 - Active queue message (updates as songs change)
 - Active song message (updates as songs change)
+- Guess the song game
