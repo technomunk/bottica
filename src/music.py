@@ -201,7 +201,6 @@ class MusicCog(commands.Cog, name="Music"):
     async def _queue_audio(self, ctx: MusicContext, infos: List[dict]):
         logger.debug("queueing %s", "playlist" if len(infos) > 1 else "song")
 
-        print(f"shuffle: {ctx.is_shuffling}, playing: {ctx.is_playing()}, len(infos): {len(infos)}")
         if ctx.is_shuffling and not ctx.is_playing() and len(infos) > 1:
             logger.debug("randomizing first song")
             idx = random.randrange(len(infos))
