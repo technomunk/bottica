@@ -202,8 +202,9 @@ class MusicCog(commands.Cog, name="Music"):
         logger.debug("queueing audio")
 
         if ctx.is_shuffling and not ctx.is_playing() and len(infos) > 1:
-            idx = random.randrange(1, len(infos))
-            infos[0], infos[idx] = infos[idx], infos[0]
+            idx = random.randrange(len(infos))
+            if idx != 0:
+                infos[0], infos[idx] = infos[idx], infos[0]
 
         for info in infos:
             key = extract_key(info)
