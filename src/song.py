@@ -4,22 +4,39 @@ import logging
 from collections import deque
 from os import path
 from random import randrange
-from typing import Deque, Dict, Generator, Iterable, Optional, Tuple
+from typing import Deque, Dict, Generator, Iterable, Optional, Set, Tuple, cast
+
+FILE_ENCODING = "utf8"
 
 logger = logging.Logger(__name__)
 
 
-class BriefSongInfo:
-    __slots__ = ("domain", "id", "ext", "duration")
+SongKey = Tuple[str, str]
 
-    def __init__(self, domain: str, id: str, ext: str, duration: int) -> None:
+
+def keystr(key: SongKey) -> str:
+    return " ".join(key)
+
+
+class SongInfo:
+    __slots__ = ("domain", "id", "ext", "duration", "title")
+
+    def __init__(
+        self,
+        domain: str,
+        id: str,
+        ext: str,
+        duration: int,
+        title: str,
+    ) -> None:
         self.domain = domain
         self.id = id
         self.ext = ext
         self.duration = duration
+        self.title = title
 
     @property
-    def key(self) -> Tuple[str, str]:
+    def key(self) -> SongKey:
         return (self.domain, self.id)
 
     @property
@@ -32,31 +49,12 @@ class BriefSongInfo:
             raise NotImplementedError("SongInfo::link(domain != youtube)")
         return f"https://www.{self.domain}.com/watch?v={self.id}"
 
-
-class SongInfo(BriefSongInfo):
-    __slots__ = ("title")
-
-    def __init__(
-        self,
-        domain: str,
-        id: str,
-        ext: str,
-        duration: int,
-        title: str,
-    ) -> None:
-        super().__init__(domain, id, ext, duration)
-        self.title = title
-
     @property
     def pretty_link(self) -> str:
         """
         Generate a pretty markdown link that consists of a clickable title.
         """
         return f"[{self.title}]({self.link})"
-
-    @property
-    def brief(self) -> BriefSongInfo:
-        return BriefSongInfo(self.domain, self.id, self.ext, self.duration)
 
     @classmethod
     def from_line(cls, line: str) -> SongInfo:
@@ -79,29 +77,29 @@ class SongRegistry:
     A collection of known songs that can be looked up by song domain+id.
     """
     def __init__(self, filename: str) -> None:
-        self._data: Dict[Tuple[str, str], Tuple[str, int, str]] = {}
+        self._data: Dict[SongKey, Tuple[str, int, str]] = {}
         self._filename = filename
         if path.exists(filename):
-            with open(filename, "r", encoding="utf8") as file:
+            with open(filename, "r", encoding=FILE_ENCODING) as file:
                 for line in file:
                     song = SongInfo.from_line(line)
                     self._data[song.key] = (song.ext, song.duration, song.title)
         else:
-            with open(filename, "w", encoding="utf8") as file:
+            with open(filename, "w", encoding=FILE_ENCODING) as file:
                 assert file
 
     def __len__(self) -> int:
         return len(self._data)
 
-    def __contains__(self, key: Tuple[str, str]) -> bool:
+    def __contains__(self, key: SongKey) -> bool:
         return key in self._data
 
-    def __getitem__(self, key: Tuple[str, str]) -> SongInfo:
+    def __getitem__(self, key: SongKey) -> SongInfo:
         info = self._data[key]
         domain, id = key
         return SongInfo(domain, id, *info)
 
-    def get(self, key: Tuple[str, str]) -> Optional[SongInfo]:
+    def get(self, key: SongKey) -> Optional[SongInfo]:
         domain, id = key
         ext_title = self._data.get(key)
         if ext_title:
@@ -114,63 +112,114 @@ class SongRegistry:
     def put(self, song: SongInfo) -> None:
         logger.debug(f'putting {song}')
         self._data[song.key] = (song.ext, song.duration, song.title)
-        with open(self._filename, "a", encoding="utf8") as file:
+        with open(self._filename, "a", encoding=FILE_ENCODING) as file:
             file.write(song.to_line())
             file.write("\n")
 
 
-class SongQueue:
+class _SongKeyCollection:
+    """
+    Base class for collections that store song information only by keys
+    and retreive full song information using a provided registry.
+    """
+    def __init__(self, registry: SongRegistry) -> None:
+        self._registry = registry
+
+    def _deref(self, song: SongKey) -> SongInfo:
+        return self._registry[song]
+
+    def _keys_in(self, lines: Iterable[str]) -> Generator[SongKey, None, None]:
+        for line in lines:
+            key = cast(SongKey, tuple(line.split(maxsplit=1)))
+            if key in self._registry:
+                yield key
+
+
+class SongQueue(_SongKeyCollection):
     """
     Sequence of played songs.
     """
-    def __init__(self) -> None:
-        self.head: Optional[BriefSongInfo] = None
-        self.tail: Deque[BriefSongInfo] = deque()
+    def __init__(self, registry: SongRegistry) -> None:
+        super().__init__(registry)
+        self._head: Optional[SongKey] = None
+        self._tail: Deque[SongKey] = deque()
         self.duration: int = 0
 
     def __len__(self) -> int:
-        return len(self.tail) + int(self.head is not None)
+        return len(self._tail) + int(self._head is not None)
 
-    def pop(self) -> Optional[BriefSongInfo]:
+    @property
+    def head(self) -> Optional[SongInfo]:
+        return self._deref(self._head) if self._head is not None else None
+
+    def pop(self) -> Optional[SongInfo]:
         """
         Move the next song to the 'head' position if possible.
         Returns the new head.
         """
-        if self.tail:
-            if self.head is not None:
-                self.duration -= self.head.duration
-            self.head = self.tail.popleft()
+        if self._tail:
+            if self._head is not None:
+                self.duration -= self._deref(self._head).duration
+            self._head = self._tail.popleft()
         else:
             self.duration = 0
-            self.head = None
+            self._head = None
         return self.head
 
-    def pop_random(self) -> Optional[BriefSongInfo]:
+    def pop_random(self) -> Optional[SongInfo]:
         """
         Move a random song from the tail to the 'head' position if possible.
         Returns the new head.
         """
-        if self.tail:
-            if self.head is not None:
-                self.duration -= self.head.duration
-            idx = randrange(len(self.tail))
-            self.head = self.tail[idx]
-            del self.tail[idx]
+        if self._tail:
+            if self._head is not None:
+                self.duration -= self._deref(self._head).duration
+            idx = randrange(len(self._tail))
+            self._head = self._tail[idx]
+            del self._tail[idx]
         else:
             self.duration = 0
-            self.head = None
+            self._head = None
         return self.head
 
-    def push(self, song: BriefSongInfo) -> None:
+    def push(self, song: SongInfo) -> None:
         self.duration += song.duration
-        self.tail.append(song)
+        self._tail.append(song.key)
 
-    def extend(self, it: Iterable[BriefSongInfo]) -> None:
-        oldlen = len(self.tail)
-        self.tail.extend(it)
-        self.duration += sum(song.duration for song in self.tail[oldlen:])
+    def extend(self, it: Iterable[SongInfo]) -> None:
+        for song in it:
+            self._tail.append(song.key)
+            self.duration += song.duration
 
     def clear(self) -> None:
-        self.head = None
-        self.tail.clear()
+        self._head = None
+        self._tail.clear()
         self.duration = 0
+
+
+class SongSet(_SongKeyCollection):
+    """
+    Set of all songs queued within a guild.
+    """
+    def __init__(self, registry: SongRegistry, filename: str) -> None:
+        super().__init__(registry)
+        self.filename = filename
+        self._data: Set[SongKey] = set()
+
+        if path.exists(filename):
+            with open(filename, "r", encoding=FILE_ENCODING) as file:
+                self._data = set(self._keys_in(file))
+        else:
+            with open(filename, "w", encoding=FILE_ENCODING) as file:
+                assert file
+
+    def add(self, song: SongInfo) -> None:
+        if song.key in self._data:
+            return
+        self._data.add(song.key)
+        with open(self.filename, "a", encoding=FILE_ENCODING) as file:
+            file.write(keystr(song.key))
+            file.write("\n")
+
+    def __iter__(self) -> Generator[SongInfo, None, None]:
+        return (self._registry[key] for key in self._data)

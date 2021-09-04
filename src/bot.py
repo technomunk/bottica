@@ -14,7 +14,7 @@ from discord.mentions import AllowedMentions
 
 from music import MusicCog
 
-BOT_VERSION = "0.6.3"
+BOT_VERSION = "0.6.4"
 
 intents = discord.Intents.default()
 intents.typing = False

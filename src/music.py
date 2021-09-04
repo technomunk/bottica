@@ -11,11 +11,12 @@ from discord.ext import commands
 from youtube_dl import YoutubeDL
 
 import response
-from song import SongInfo, SongQueue, SongRegistry
+from song import SongSet, SongInfo, SongQueue, SongRegistry
 from util import format_duration, onoff
 
 DATA_FOLDER = "data/"
 AUDIO_FOLDER = DATA_FOLDER + "audio/"
+GUILD_SET_FOLDER = DATA_FOLDER + ".sets/"
 SONG_REGISTRY_FILENAME = DATA_FOLDER + "songs.txt"
 
 logger = logging.getLogger(__name__)
@@ -66,15 +67,28 @@ class MusicGuildState:
     """
     Musical state relevant to a single guild.
     """
-    queue: SongQueue = SongQueue()
+    __slots__ = ("queue", "song_set", "is_shuffling", "song_message")
+    queue: SongQueue
+    song_set: SongSet
     is_shuffling: bool = False
     song_message: Optional[discord.Message] = None
 
+    def __init__(self, registry: SongRegistry, guild_id: int) -> None:
+        self.queue = SongQueue(registry)
+        self.song_set = SongSet(registry, f"{GUILD_SET_FOLDER}{guild_id}.txt")
+
 
 class MusicContext:
-    def __init__(self, ctx: commands.Context, states: Dict[int, MusicGuildState]):
+    def __init__(
+        self,
+        ctx: commands.Context,
+        registry: SongRegistry,
+        states: Dict[int, MusicGuildState],
+    ) -> None:
         self.ctx = ctx
-        self.state = states.setdefault(self.ctx.guild.id, MusicGuildState())
+        if ctx.guild.id not in states:
+            states[ctx.guild.id] = MusicGuildState(registry, ctx.guild.id)
+        self.state = states[ctx.guild.id]
 
     def is_playing(self) -> bool:
         return (
@@ -90,10 +104,14 @@ class MusicContext:
             return getattr(self, name)
         return getattr(self.ctx, name)
 
-    async def display_song_info(self, active: bool) -> None:
-        assert self.song_queue.head is not None
+    async def display_current_song_info(self, active: bool) -> None:
         song = self.song_queue.head
-        embed = discord.Embed(description=self.ctx.cog.songs[song.key].pretty_link)
+        if song is None:
+            if self.song_message is not None:
+                self.task(self.song_message.delete())
+            return
+
+        embed = discord.Embed(description=song.pretty_link)
 
         reuse = False
         if active and self.song_message is not None:
@@ -119,9 +137,13 @@ class MusicContext:
             raise RuntimeError("Bot is not connected to voice to play.")
 
         if not self.voice_client.is_connected():
-            raise RuntimeError("Bot is not connected to a voice chennel.")
+            raise RuntimeError("Bot is not connected to a voice channel.")
 
-        song = self.song_queue.pop_random() if self.is_shuffling else self.song_queue.pop()
+        if self.is_shuffling:
+            song = self.song_queue.pop_random()
+        else:
+            song = self.song_queue.pop()
+
         if song is None:
             if self.is_playing():
                 self.voice_client.stop()
@@ -149,6 +171,10 @@ class MusicContext:
     @property
     def song_queue(self) -> SongQueue:
         return self.state.queue
+
+    @property
+    def song_set(self) -> SongSet:
+        return self.state.song_set
 
     @property
     def voice_client(self) -> Optional[discord.VoiceClient]:
@@ -187,15 +213,16 @@ class MusicCog(commands.Cog, name="Music"):
         self.guild_states: Dict[int, MusicGuildState] = {}
 
         makedirs(AUDIO_FOLDER, exist_ok=True)
+        makedirs(GUILD_SET_FOLDER, exist_ok=True)
 
         bot.status_reporters.append(lambda ctx: self.status(ctx))
         logger.debug("MusicCog initialized with %d songs", len(self.songs))
 
     def _wrap_context(self, ctx: commands.Context) -> MusicContext:
-        return MusicContext(ctx, self.guild_states)
+        return MusicContext(ctx, self.registry, self.guild_states)
 
     def status(self, ctx: commands.Context) -> str:
-        is_shuffling = self.guild_states[ctx.guild.id]
+        is_shuffling = self.guild_states[ctx.guild.id].is_shuffling
         return f"with {len(self.songs)} songs at the ready\nshuffling is {onoff(is_shuffling)}"
 
     async def _queue_audio(self, ctx: MusicContext, infos: List[dict]):
@@ -217,7 +244,8 @@ class MusicCog(commands.Cog, name="Music"):
                 )
                 song = extract_song_info(song_info)
                 self.songs.put(song)
-            ctx.song_queue.push(song.brief)
+                ctx.song_set.add(song)
+            ctx.song_queue.push(song)
             if not ctx.is_playing():
                 ctx.play_next()
 
@@ -245,12 +273,10 @@ class MusicCog(commands.Cog, name="Music"):
     @commands.check(check_author_is_voice_connected)
     async def playall(self, ctx: commands.Context):
         """
-        Play all downloaded songs.
+        Play all songs that were ever queued on this server.
         """
         ctx = self._wrap_context(ctx)
-        ctx.song_queue.extend(
-            (song.key, song.ext, song.duration) for song in self.songs
-        )
+        ctx.song_queue.extend(ctx.song_set)
         if not ctx.is_playing():
             self.play_next()
 
@@ -303,7 +329,8 @@ class MusicCog(commands.Cog, name="Music"):
         """
         ctx = self._wrap_context(ctx)
         if ctx.is_playing() and ctx.song_queue:
-            desc = f"Queued {len(ctx.song_queue)} songs ({format_duration(ctx.song_queue.duration)})."
+            durstr = format_duration(ctx.song_queue.duration)
+            desc = f"Queued {len(ctx.song_queue)} songs ({durstr})."
             embed = discord.Embed(description=desc)
             self.bot.loop.create_task(ctx.reply(embed=embed))
         else:
