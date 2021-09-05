@@ -156,7 +156,7 @@ class MusicContext:
             else:
                 logger.error("encountered error: %s", error)
 
-        logger.debug("playing %s", song.key)
+        logger.debug("playing %s in %s", song.key, self.ctx.guild.name)
         self.voice_client.play(
             discord.FFmpegPCMAudio(f"{AUDIO_FOLDER}{song.filename}", options="-vn"),
             after=handle_after,

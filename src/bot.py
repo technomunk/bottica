@@ -14,7 +14,7 @@ from discord.mentions import AllowedMentions
 
 from music import MusicCog
 
-BOT_VERSION = "0.6.6"
+BOT_VERSION = "0.6.7"
 
 intents = discord.Intents.default()
 intents.typing = False
@@ -53,7 +53,7 @@ async def on_ready():
 
 @bot.before_invoke
 async def pre_invoke(ctx: commands.Context):
-    logger.info('calling "%s"', ctx.message.content)
+    logger.info('calling "%s" in "%s"', ctx.message.content, ctx.guild.name)
     bot.loop.create_task(ctx.message.add_reaction(emojis["command_heard"]))
 
 
