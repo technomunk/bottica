@@ -1,6 +1,12 @@
 # Bottica
 
-A personal discord bot.
+A personal music-playing discord bot project.
+
+## Using
+
+The bot ran by [Technomunk](https://github.com/technomunk) is personal and thus can only be invited
+by them. To interact with the bot on the server send to any chat a message beginning with `b.`.
+Start by using `b.help` which will print all available commands.
 
 ## Installing
 
