@@ -7,4 +7,4 @@ def format_duration(seconds: int) -> str:
     h, m = m // 60, m % 60
     d, h = h // 24, h % 24
     sections = (d, h, m, s)
-    return ":".join(format(el, "{:02d}") for el in sections if el)
+    return ":".join(format(el, "02d") for el in sections if el)
