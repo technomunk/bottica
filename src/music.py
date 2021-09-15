@@ -11,7 +11,7 @@ from youtube_dl import YoutubeDL
 
 import response
 from song import SongSet, SongInfo, SongQueue, SongRegistry
-from util import format_duration, onoff
+from util import contains_real_members, format_duration, onoff
 
 DATA_FOLDER = "data/"
 AUDIO_FOLDER = DATA_FOLDER + "audio/"
@@ -65,13 +65,14 @@ class MusicGuildState:
     """
     Musical state relevant to a single guild.
     """
-    __slots__ = ("queue", "set", "is_shuffling", "song_message")
+    __slots__ = ("queue", "set", "is_shuffling", "song_message", "last_ctx")
 
     def __init__(self, registry: SongRegistry, guild_id: int) -> None:
         self.queue = SongQueue(registry)
         self.set = SongSet(registry, f"{GUILD_SET_FOLDER}{guild_id}.txt")
         self.is_shuffling = False
         self.song_message: Optional[discord.Message] = None
+        self.last_ctx: Optional[MusicContext] = None
 
 
 class MusicContext:
@@ -85,6 +86,7 @@ class MusicContext:
         if ctx.guild.id not in states:
             states[ctx.guild.id] = MusicGuildState(registry, ctx.guild.id)
         self.state = states[ctx.guild.id]
+        self.state.last_ctx = self
 
     def is_playing(self) -> bool:
         return (
@@ -151,10 +153,12 @@ class MusicContext:
             self.voice_client.pause()
 
         def handle_after(error):
-            if error is None:
-                self.play_next()
-            else:
+            if error is not None:
                 logger.error("encountered error: %s", error)
+                return
+
+            if contains_real_members(self.voice_client.channel):
+                self.play_next()
 
         logger.debug("playing %s in %s", song.key, self.ctx.guild.name)
         self.voice_client.play(
@@ -225,6 +229,19 @@ class MusicCog(commands.Cog, name="Music"):
             len(self.guild_states),
         )
         self.bot.status_reporters.append(lambda ctx: self.status(ctx))
+
+    @commands.Cog.listener()
+    async def on_voice_state_update(
+        self,
+        member: discord.Member,
+        _before: discord.VoiceState,
+        after: discord.VoiceState,
+    ):
+        if member.bot or after.channel is None:
+            return
+        state = self.guild_states.get(after.channel.guid.id)
+        if state is not None and state.last_ctx is not None and not state.last_ctx.is_playing():
+            state.last_ctx.play_next()
 
     def status(self, ctx: commands.Context) -> Iterable[str]:
         state = self.guild_states[ctx.guild.id]
