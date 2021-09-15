@@ -109,7 +109,7 @@ class MusicContext:
                 self.task(self.song_message.delete())
             return
 
-        embed = discord.Embed(description=song.pretty_link)
+        embed = discord.Embed(description=f"{song.pretty_link} - {format_duration(song.duration)}")
 
         reuse = False
         if active and self.song_message is not None:
@@ -159,6 +159,11 @@ class MusicContext:
 
             if contains_real_members(self.voice_client.channel):
                 self.play_next()
+            elif self.song_message:
+                if len(self.song_queue) > 1:
+                    self.task(self.song_message.edit("..."))
+                else:
+                    self.task(self.song_message.delete())
 
         logger.debug("playing %s in %s", song.key, self.ctx.guild.name)
         self.voice_client.play(
@@ -237,11 +242,16 @@ class MusicCog(commands.Cog, name="Music"):
         _before: discord.VoiceState,
         after: discord.VoiceState,
     ):
+        # check that a real user connected to a channel
         if member.bot or after.channel is None:
             return
-        state = self.guild_states.get(after.channel.guid.id)
-        if state is not None and state.last_ctx is not None and not state.last_ctx.is_playing():
-            state.last_ctx.play_next()
+        state = self.guild_states.get(after.channel.guild.id)
+        if state is None or state.last_ctx is None or state.last_ctx.voice_client is None:
+            return
+        if after.channel == state.last_ctx.voice_client.channel:
+            logger.debug("resuming playback")
+            if not state.last_ctx.is_playing():
+                state.last_ctx.play_next()
 
     def status(self, ctx: commands.Context) -> Iterable[str]:
         state = self.guild_states[ctx.guild.id]

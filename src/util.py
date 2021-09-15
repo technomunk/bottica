@@ -6,11 +6,12 @@ def onoff(val: bool) -> str:
 
 
 def format_duration(seconds: int) -> str:
-    m, s = seconds // 60, seconds % 60
-    h, m = m // 60, m % 60
-    d, h = h // 24, h % 24
-    sections = (d, h, m, s)
-    return ":".join(format(el, "02d") for el in sections if el)
+    m, s = divmod(seconds, 60)
+    h, m = divmod(m, 60)
+    d, h = divmod(h, 24)
+    dstr = f"{d}d " if d else ""
+    hstr = f"{h:02d}h" if h else ""
+    return f"{dstr}{hstr}{m:02d}:{s:02d}"
 
 
 def contains_real_members(channel: discord.VoiceChannel) -> bool:
