@@ -161,7 +161,7 @@ class MusicContext:
                 self.play_next()
             elif self.song_message:
                 if len(self.song_queue) > 1:
-                    self.task(self.song_message.edit("..."))
+                    self.task(self.song_message.edit(embed=discord.Embed(description="...")))
                 else:
                     self.task(self.song_message.delete())
 
