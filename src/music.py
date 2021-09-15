@@ -249,9 +249,9 @@ class MusicCog(commands.Cog, name="Music"):
         if state is None or state.last_ctx is None or state.last_ctx.voice_client is None:
             return
         if after.channel == state.last_ctx.voice_client.channel:
-            logger.debug("resuming playback")
             if not state.last_ctx.is_playing():
                 state.last_ctx.play_next()
+                logger.debug("resuming playback")
 
     def status(self, ctx: commands.Context) -> Iterable[str]:
         state = self.guild_states[ctx.guild.id]
