@@ -109,7 +109,7 @@ class MusicContext:
                 self.task(self.song_message.delete())
             return
 
-        embed = discord.Embed(description=f"{song.pretty_link} - {format_duration(song.duration)}")
+        embed = discord.Embed(description=f"{song.pretty_link} : {format_duration(song.duration)}")
 
         reuse = False
         if active and self.song_message is not None:
