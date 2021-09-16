@@ -4,6 +4,7 @@
 import logging
 import random
 from argparse import ArgumentParser
+from typing import Set, Union
 
 import discord
 import toml
@@ -13,7 +14,6 @@ from discord.mentions import AllowedMentions
 from joke import facts, jokes, quotes
 
 from music import MusicCog
-from util import get_mentined_members
 
 BOT_VERSION = "0.8.2"
 
@@ -109,11 +109,19 @@ async def rate(ctx: commands.Context, user: discord.Member):
 
 
 @bot.command()
-async def choose(ctx: commands.Context, *args):
+async def choose(ctx: commands.Context, *mentions: Union[discord.Role, discord.Member]):
     """
     Select a single member from provided mentions.
     """
-    selection_set = set(await get_mentined_members(ctx, *args))
+    selection_set: Set[discord.Member] = set()
+    for mention in mentions:
+        if isinstance(mention, discord.Role):
+            for member in mention.members:
+                selection_set.add(member)
+        elif isinstance(mention, discord.Member):
+            selection_set.add(mention)
+        else:
+            raise TypeError
     reply_content = (
         random.choice(tuple(selection_set)).mention
         if selection_set

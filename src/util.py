@@ -1,12 +1,4 @@
-from typing import Iterable, Sequence
-
 import discord
-from discord.ext.commands import Context as CmdContext
-from discord.ext.commands import MemberConverter, RoleConverter
-from discord.ext.commands.errors import MemberNotFound, RoleNotFound
-
-_member_converter = MemberConverter()
-_role_converter = RoleConverter()
 
 
 def onoff(val: bool) -> str:
@@ -30,31 +22,3 @@ def contains_real_members(channel: discord.VoiceChannel) -> bool:
         if not member.bot:
             return True
     return False
-
-
-async def get_mentined_members(
-    ctx: CmdContext, mentions: Iterable[str]
-) -> Sequence[discord.Member]:
-    """
-    Get the sequence of members mentioned.
-
-    If the mention is a role returns all members with such role.
-    If the mention is a specific user returns just that user.
-    In case of fail returns an empty sequence.
-    """
-    members = []
-
-    for mention in mentions:
-        try:
-            role = await _role_converter.convert(ctx, mention)
-            members.extend(role.members)
-        except RoleNotFound:
-            pass
-
-        try:
-            member = await _member_converter.convert(ctx, mention)
-            members.append(member)
-        except MemberNotFound:
-            pass
-
-    return members
