@@ -111,14 +111,15 @@ async def choose(ctx: commands.Context, *args):
     """
     selection_set: Set[discord.Member] = set()
     for arg in args:
-        for member in get_mentined_members(ctx, arg):
+        members = await get_mentined_members(ctx, arg)
+        for member in members:
             selection_set.add(member)
     reply = (
         random.choice(tuple(selection_set)).mention
         if selection_set
         else "Nobody to choose!"
     )
-    bot.loop.create_task(reply)
+    bot.loop.create_task(ctx.reply(reply))
 
 
 def run_bot():

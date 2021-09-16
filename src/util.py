@@ -32,7 +32,7 @@ def contains_real_members(channel: discord.VoiceChannel) -> bool:
     return False
 
 
-def get_mentined_members(ctx: CmdContext, mention: str) -> Sequence[discord.Member]:
+async def get_mentined_members(ctx: CmdContext, mention: str) -> Sequence[discord.Member]:
     """
     Get the sequence of members mentioned.
 
@@ -41,13 +41,13 @@ def get_mentined_members(ctx: CmdContext, mention: str) -> Sequence[discord.Memb
     In case of fail returns an empty sequence.
     """
     try:
-        role = _role_converter.convert(ctx, mention)
+        role = await _role_converter.convert(ctx, mention)
         return role.members
     except RoleNotFound:
         pass
 
     try:
-        member = _member_converter.convert(ctx, mention)
+        member = await _member_converter.convert(ctx, mention)
         return (member,)
     except MemberNotFound:
         pass
