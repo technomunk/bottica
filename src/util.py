@@ -15,9 +15,9 @@ def format_duration(seconds: int) -> str:
 
 
 def contains_real_members(channel: discord.VoiceChannel) -> bool:
-    '''
+    """
     Check whether the provided channel contains non-bot members.
-    '''
+    """
     for member in channel.members:
         if not member.bot:
             return True

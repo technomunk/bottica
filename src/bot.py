@@ -4,17 +4,18 @@
 import logging
 import random
 from argparse import ArgumentParser
+from typing import List, Set, Union
 
 import discord
 import toml
-from joke import jokes, quotes, facts
 from discord.ext import commands
 from discord.ext.commands import Bot as DiscordBot
 from discord.mentions import AllowedMentions
+from joke import facts, jokes, quotes
 
 from music import MusicCog
 
-BOT_VERSION = "0.7.3"
+BOT_VERSION = "0.8.0"
 
 intents = discord.Intents.default()
 intents.typing = False
@@ -61,7 +62,9 @@ async def pre_invoke(ctx: commands.Context):
 async def post_invoke(ctx: commands.Context):
     bot.loop.create_task(
         ctx.message.add_reaction(
-            emojis["command_failed"] if ctx.command_failed else emojis["command_succeeded"]
+            emojis["command_failed"]
+            if ctx.command_failed
+            else emojis["command_succeeded"]
         )
     )
 
@@ -74,11 +77,11 @@ async def status(ctx: commands.Context):
     lines = [f"Running version `{BOT_VERSION}`"]
     for reporter in bot.status_reporters:
         lines.extend(reporter(ctx))
-    embed = discord.Embed(description='\n'.join(lines))
+    embed = discord.Embed(description="\n".join(lines))
     bot.loop.create_task(ctx.send(embed=embed))
 
 
-@bot.command(aliases=("j", "jk",))
+@bot.command(aliases=("j", "jk"))
 async def joke(ctx: commands.Context):
     """
     Tell a joke.
@@ -98,6 +101,30 @@ async def rate(ctx: commands.Context, user: discord.Member):
     else:
         rating = random.randint(1, 9)
     bot.loop.create_task(ctx.send(f"{user.mention} is {rating}/10."))
+
+
+@bot.command()
+async def choose(
+    ctx: commands.Context, selection: List[Union[discord.Role, discord.Member]]
+):
+    """
+    Select a single member from provided mentions.
+    """
+    selection_set: Set[discord.Member] = set()
+    for sel in selection:
+        if isinstance(discord.Role, sel):
+            for member in sel.members:
+                selection_set.add(member)
+        elif isinstance(discord.Member, sel):
+            selection_set.add(sel)
+        else:
+            raise TypeError(sel)
+    reply = (
+        random.choice(tuple(selection_set)).mention
+        if selection_set
+        else "Nobody to choose!"
+    )
+    bot.loop.create_task(reply)
 
 
 def run_bot():

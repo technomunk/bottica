@@ -63,19 +63,22 @@ class SongInfo:
         return cls(domain, id, ext, duration, title)
 
     def to_line(self) -> str:
-        return " ".join((
-            self.domain,
-            self.id,
-            self.ext,
-            repr(self.duration),
-            self.title,
-        ))
+        return " ".join(
+            (
+                self.domain,
+                self.id,
+                self.ext,
+                repr(self.duration),
+                self.title,
+            )
+        )
 
 
 class SongRegistry:
     """
     A collection of known songs that can be looked up by song domain+id.
     """
+
     def __init__(self, filename: str) -> None:
         self._data: Dict[SongKey, Tuple[str, int, str]] = {}
         self._filename = filename
@@ -121,6 +124,7 @@ class _SongKeyCollection:
     Base class for collections that store song information only by keys
     and retreive full song information using a provided registry.
     """
+
     def __init__(self, registry: SongRegistry) -> None:
         self._registry = registry
 
@@ -140,6 +144,7 @@ class SongQueue(_SongKeyCollection):
     """
     Sequence of played songs.
     """
+
     def __init__(self, registry: SongRegistry) -> None:
         super().__init__(registry)
         self._head: Optional[SongKey] = None
@@ -202,6 +207,7 @@ class SongSet(_SongKeyCollection):
     """
     Set of all songs queued within a guild.
     """
+
     def __init__(self, registry: SongRegistry, filename: str) -> None:
         super().__init__(registry)
         self.filename = filename

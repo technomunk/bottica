@@ -65,6 +65,7 @@ class MusicGuildState:
     """
     Musical state relevant to a single guild.
     """
+
     __slots__ = ("queue", "set", "is_shuffling", "song_message", "last_ctx")
 
     def __init__(self, registry: SongRegistry, guild_id: int) -> None:
@@ -89,10 +90,7 @@ class MusicContext:
         self.state.last_ctx = self
 
     def is_playing(self) -> bool:
-        return (
-            self.ctx.voice_client is not None
-            and self.ctx.voice_client.is_playing()
-        )
+        return self.ctx.voice_client is not None and self.ctx.voice_client.is_playing()
 
     def task(self, task: Coroutine) -> None:
         self.ctx.bot.loop.create_task(task)
@@ -109,7 +107,9 @@ class MusicContext:
                 self.task(self.song_message.delete())
             return
 
-        embed = discord.Embed(description=f"{song.pretty_link} : {format_duration(song.duration)}")
+        embed = discord.Embed(
+            description=f"{song.pretty_link} <> {format_duration(song.duration)}"
+        )
 
         reuse = False
         if active and self.song_message is not None:
@@ -122,7 +122,7 @@ class MusicContext:
         elif active:
             if self.song_message:
                 self.task(self.song_message.delete())
-            self.song_message = await(self.ctx.send(embed=embed))
+            self.song_message = await self.ctx.send(embed=embed)
         else:
             self.song_message = None
             self.task(self.ctx.send(embed=embed))
@@ -161,7 +161,9 @@ class MusicContext:
                 self.play_next()
             elif self.song_message:
                 if len(self.song_queue) > 1:
-                    self.task(self.song_message.edit(embed=discord.Embed(description="...")))
+                    self.task(
+                        self.song_message.edit(embed=discord.Embed(description="..."))
+                    )
                 else:
                     self.task(self.song_message.delete())
 
@@ -246,7 +248,11 @@ class MusicCog(commands.Cog, name="Music"):
         if member.bot or after.channel is None:
             return
         state = self.guild_states.get(after.channel.guild.id)
-        if state is None or state.last_ctx is None or state.last_ctx.voice_client is None:
+        if (
+            state is None
+            or state.last_ctx is None
+            or state.last_ctx.voice_client is None
+        ):
             return
         if after.channel == state.last_ctx.voice_client.channel:
             if not state.last_ctx.is_playing():
@@ -353,9 +359,7 @@ class MusicCog(commands.Cog, name="Music"):
         if mctx.is_playing() and mctx.song_queue.head is not None:
             self.bot.loop.create_task(mctx.display_current_song_info(active))
         else:
-            self.bot.loop.create_task(
-                ctx.reply("Not playing anything at the moment.")
-            )
+            self.bot.loop.create_task(ctx.reply("Not playing anything at the moment."))
 
     @commands.command(aliases=("q",))
     async def queue(self, ctx: commands.Context):
