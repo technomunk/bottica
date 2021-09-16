@@ -28,7 +28,7 @@ bot = DiscordBot(
 )
 logger = logging.getLogger(__name__)
 emojis = {
-    "command_heard": "👀",
+    "command_seen": "👀",
     "command_failed": "❌",
     "command_succeeded": "✅",
 }
@@ -56,7 +56,8 @@ async def on_ready():
 @bot.before_invoke
 async def pre_invoke(ctx: commands.Context):
     logger.info('calling "%s" in "%s"', ctx.message.content, ctx.guild.name)
-    bot.loop.create_task(ctx.message.add_reaction(emojis["command_heard"]))
+    bot.loop.create_task(ctx.message.add_reaction(emojis["command_seen"]))
+    bot.loop.create_task(ctx.trigger_typing())
 
 
 @bot.after_invoke
@@ -158,13 +159,13 @@ def run_bot():
         print('Add it to "config.toml" or provide with --token.')
 
     # set up logging
-    log_level = args.log or config.get("log") or logging.NOTSET
+    log_level = args.log or config.get("log") or logging.INFO
     logging.basicConfig(
         format="%(asctime)s:%(levelname)s:%(name)s:%(funcName)s: %(message)s",
         level=log_level,
     )
     logger.debug("set logging level to %s", log_level)
-    logging.getLogger("discord").setLevel("WARNING")
+    logging.getLogger("discord").setLevel(logging.WARNING)
 
     bot.status_reporters = []
     bot.add_cog(MusicCog(bot))
