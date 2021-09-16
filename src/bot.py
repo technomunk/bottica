@@ -4,7 +4,6 @@
 import logging
 import random
 from argparse import ArgumentParser
-from typing import Set
 
 import discord
 import toml
@@ -16,11 +15,12 @@ from joke import facts, jokes, quotes
 from music import MusicCog
 from util import get_mentined_members
 
-BOT_VERSION = "0.8.1"
+BOT_VERSION = "0.8.2"
 
 intents = discord.Intents.default()
 intents.typing = False
 intents.presences = False
+intents.members = True
 bot = DiscordBot(
     "b.",
     intents=intents,
@@ -76,7 +76,10 @@ async def status(ctx: commands.Context):
     """
     Print the bot status.
     """
-    lines = [f"Running version `{BOT_VERSION}`"]
+    lines = [
+        f"Running version `{BOT_VERSION}`",
+        "Try the new `b.choose` command!",
+    ]
     for reporter in bot.status_reporters:
         lines.extend(reporter(ctx))
     embed = discord.Embed(description="\n".join(lines))
@@ -110,11 +113,7 @@ async def choose(ctx: commands.Context, *args):
     """
     Select a single member from provided mentions.
     """
-    selection_set: Set[discord.Member] = set()
-    for arg in args:
-        members = await get_mentined_members(ctx, arg)
-        for member in members:
-            selection_set.add(member)
+    selection_set = set(await get_mentined_members(ctx, *args))
     reply_content = (
         random.choice(tuple(selection_set)).mention
         if selection_set

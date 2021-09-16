@@ -228,7 +228,8 @@ class MusicCog(commands.Cog, name="Music"):
     @commands.Cog.listener()
     async def on_ready(self):
         self.guild_states = {
-            guild.id: MusicGuildState(self.song_registry, guild.id) for guild in self.bot.guilds
+            guild.id: MusicGuildState(self.song_registry, guild.id)
+            for guild in self.bot.guilds
         }
         logger.info(
             "MusicCog initialized with %d songs and %d states",
