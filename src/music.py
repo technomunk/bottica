@@ -125,7 +125,7 @@ class MusicContext:
             self.song_message = await self.ctx.send(embed=embed)
         else:
             self.song_message = None
-            self.task(self.ctx.send(embed=embed))
+            self.task(self.ctx.reply(embed=embed))
 
     def play_next(self) -> None:
         """

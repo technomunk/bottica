@@ -15,7 +15,7 @@ from joke import facts, jokes, quotes
 
 from music import MusicCog
 
-BOT_VERSION = "0.8.2"
+BOT_VERSION = "0.8.3"
 
 intents = discord.Intents.default()
 intents.typing = False
@@ -83,7 +83,7 @@ async def status(ctx: commands.Context):
     for reporter in bot.status_reporters:
         lines.extend(reporter(ctx))
     embed = discord.Embed(description="\n".join(lines))
-    bot.loop.create_task(ctx.send(embed=embed))
+    bot.loop.create_task(ctx.reply(embed=embed))
 
 
 @bot.command(aliases=("j", "jk"))
@@ -105,7 +105,7 @@ async def rate(ctx: commands.Context, user: discord.Member):
         rating = 10
     else:
         rating = random.randint(1, 9)
-    bot.loop.create_task(ctx.send(f"{user.mention} is {rating}/10."))
+    bot.loop.create_task(ctx.reply(f"{user.mention} is {rating}/10."))
 
 
 @bot.command()
