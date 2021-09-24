@@ -155,7 +155,7 @@ class MusicContext:
                 logger.error("encountered error: %s", error)
                 return
 
-            if any(not member.bot for member in self.voice_client.members):
+            if any(not member.bot for member in self.voice_client.channel.members):
                 self.play_next()
             elif self.song_message:
                 if len(self.song_queue) > 1:
