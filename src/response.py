@@ -20,6 +20,11 @@ FAILS: Sequence[str] = (
     ":poop:",
     ":frowning::-1:",
 )
+REACTIONS = {
+    "command_seen": "👀",
+    "command_failed": "❌",
+    "command_succeeded": "✅",
+}
 
 DEFAULT_TIMEOUT = 10
 

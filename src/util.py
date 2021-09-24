@@ -1,4 +1,7 @@
-import discord
+from inspect import signature
+from typing import Any, Tuple
+
+from discord.ext.commands import Converter
 
 
 def onoff(val: bool) -> str:
@@ -14,11 +17,24 @@ def format_duration(seconds: int) -> str:
     return f"{dstr}{hstr}{m:02d}:{s:02d}"
 
 
-def contains_real_members(channel: discord.VoiceChannel) -> bool:
+def converted_type_name(converter: Any) -> str:
+    annotated_return = ""
+    if isinstance(converter, Converter):
+        annotated_return = signature(converter.convert).return_annotation
+    return annotated_return or converter.__module__.split(".", maxsplit=1)[-1]
+
+
+def convertee_names(converters: Tuple[Converter]) -> str:
     """
-    Check whether the provided channel contains non-bot members.
+    Generate a human readable version of types of converter results.
+    Ex:
+    (discord.Role, discord.Member) => "role or member"
     """
-    for member in channel.members:
-        if not member.bot:
-            return True
-    return False
+    if not converters:
+        return ""
+
+    result = ", ".join(converted_type_name(cvtr) for cvtr in converters[:-1])
+    if len(converters) >= 2:
+        result += " or "
+    result += converted_type_name(converters[-1])
+    return result

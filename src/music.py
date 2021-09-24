@@ -3,15 +3,16 @@
 import logging
 import random
 from os import makedirs
-from typing import Any, Coroutine, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import discord
 from discord.ext import commands
 from youtube_dl import YoutubeDL
 
 import response
-from song import SongSet, SongInfo, SongQueue, SongRegistry
-from util import contains_real_members, format_duration, onoff
+from error import atask
+from song import SongInfo, SongQueue, SongRegistry, SongSet
+from util import format_duration, onoff
 
 DATA_FOLDER = "data/"
 AUDIO_FOLDER = DATA_FOLDER + "audio/"
@@ -92,9 +93,6 @@ class MusicContext:
     def is_playing(self) -> bool:
         return self.ctx.voice_client is not None and self.ctx.voice_client.is_playing()
 
-    def task(self, task: Coroutine) -> None:
-        self.ctx.bot.loop.create_task(task)
-
     def __getattr__(self, name: str) -> Any:
         if name in self.__dict__:
             return getattr(self, name)
@@ -104,7 +102,7 @@ class MusicContext:
         song = self.song_queue.head
         if song is None:
             if self.song_message is not None:
-                self.task(self.song_message.delete())
+                atask(self.song_message.delete())
             return
 
         embed = discord.Embed(
@@ -118,14 +116,14 @@ class MusicContext:
 
         if reuse:
             assert self.song_message is not None
-            self.task(self.song_message.edit(embed=embed))
+            atask(self.song_message.edit(embed=embed))
         elif active:
             if self.song_message:
-                self.task(self.song_message.delete())
+                atask(self.song_message.delete())
             self.song_message = await self.ctx.send(embed=embed)
         else:
             self.song_message = None
-            self.task(self.ctx.reply(embed=embed))
+            atask(self.ctx.reply(embed=embed))
 
     def play_next(self) -> None:
         """
@@ -146,7 +144,7 @@ class MusicContext:
             if self.is_playing():
                 self.voice_client.stop()
             if self.song_message:
-                self.task(self.song_message.delete())
+                atask(self.song_message.delete())
             return
 
         if self.is_playing():
@@ -157,15 +155,15 @@ class MusicContext:
                 logger.error("encountered error: %s", error)
                 return
 
-            if contains_real_members(self.voice_client.channel):
+            if any(not member.bot for member in self.voice_client.members):
                 self.play_next()
             elif self.song_message:
                 if len(self.song_queue) > 1:
-                    self.task(
+                    atask(
                         self.song_message.edit(embed=discord.Embed(description="..."))
                     )
                 else:
-                    self.task(self.song_message.delete())
+                    atask(self.song_message.delete())
 
         logger.debug("playing %s in %s", song.key, self.ctx.guild.name)
         self.voice_client.play(
@@ -173,7 +171,7 @@ class MusicContext:
             after=handle_after,
         )
         if self.song_message:
-            self.task(self.display_current_song_info(True))
+            atask(self.display_current_song_info(True), self.ctx)
 
     @property
     def song_queue(self) -> SongQueue:
@@ -277,6 +275,11 @@ class MusicCog(commands.Cog, name="Music"):
                 infos[0], infos[idx] = infos[idx], infos[0]
 
         for info in infos:
+            if info.get("_type", "video") != "video":
+                embed = discord.Embed(description=f"Skipping {info.get('url')} as it is not a video.")
+                atask(ctx.ctx.reply(embed=embed))
+                logger.warning("Skipping %s as it is a %s", info.get("url"), info["_type"])
+                continue
             key = extract_key(info)
             song = self.song_registry.get(key)
             if song is None:
@@ -305,11 +308,9 @@ class MusicCog(commands.Cog, name="Music"):
         req_type = req.get("_type", "video")
         mctx = self._wrap_context(ctx)
         if req_type == "playlist":
-            self.bot.loop.create_task(
-                self._queue_audio(mctx, [entry for entry in req["entries"]])
-            )
+            atask(self._queue_audio(mctx, [entry for entry in req["entries"]]), ctx)
         else:
-            self.bot.loop.create_task(self._queue_audio(mctx, [req]))
+            atask(self._queue_audio(mctx, [req]), ctx)
 
     @commands.command(aliases=("pa",))
     @commands.check(check_author_is_voice_connected)
@@ -358,9 +359,9 @@ class MusicCog(commands.Cog, name="Music"):
         """
         mctx = self._wrap_context(ctx)
         if mctx.is_playing() and mctx.song_queue.head is not None:
-            self.bot.loop.create_task(mctx.display_current_song_info(active))
+            atask(mctx.display_current_song_info(active), ctx)
         else:
-            self.bot.loop.create_task(ctx.reply("Not playing anything at the moment."))
+            atask(ctx.reply("Not playing anything at the moment."))
 
     @commands.command(aliases=("q",))
     async def queue(self, ctx: commands.Context):
@@ -372,9 +373,9 @@ class MusicCog(commands.Cog, name="Music"):
             durstr = format_duration(mctx.song_queue.duration)
             desc = f"Queued {len(mctx.song_queue)} songs ({durstr})."
             embed = discord.Embed(description=desc)
-            self.bot.loop.create_task(ctx.reply(embed=embed))
+            atask(ctx.reply(embed=embed))
         else:
-            self.bot.loop.create_task(ctx.reply("Nothing queued at the moment."))
+            atask(ctx.reply("Nothing queued at the moment."))
 
     @commands.command()
     async def shuffle(self, ctx: commands.context, state: Optional[bool] = None):
@@ -386,9 +387,7 @@ class MusicCog(commands.Cog, name="Music"):
         """
         mctx = self._wrap_context(ctx)
         if state is None:
-            self.bot.loop.create_task(
-                ctx.reply(f"Shuffling is `{onoff(mctx.is_shuffling)}`")
-            )
+            atask(ctx.reply(f"Shuffling is `{onoff(mctx.is_shuffling)}`"))
         else:
             mctx.is_shuffling = state
 
@@ -399,7 +398,7 @@ class MusicCog(commands.Cog, name="Music"):
         """
         mctx = self._wrap_context(ctx)
         if not mctx.is_playing():
-            self.bot.loop.create_task(
+            atask(
                 ctx.reply("I'm not playing anything." + random.choice(response.FAILS))
             )
         mctx.play_next()

@@ -13,9 +13,11 @@ from discord.ext.commands import Bot as DiscordBot
 from discord.mentions import AllowedMentions
 from joke import facts, jokes, quotes
 
+from error import atask, event_loop, handle_command_error
 from music import MusicCog
+from response import REACTIONS
 
-BOT_VERSION = "0.8.3"
+BOT_VERSION = "0.9.0"
 
 intents = discord.Intents.default()
 intents.typing = False
@@ -23,15 +25,11 @@ intents.presences = False
 intents.members = True
 bot = DiscordBot(
     "b.",
+    loop=event_loop,
     intents=intents,
     allowed_mentions=AllowedMentions(users=True),
 )
 logger = logging.getLogger(__name__)
-emojis = {
-    "command_seen": "👀",
-    "command_failed": "❌",
-    "command_succeeded": "✅",
-}
 
 joke_pool = (
     jokes.geek,
@@ -56,19 +54,13 @@ async def on_ready():
 @bot.before_invoke
 async def pre_invoke(ctx: commands.Context):
     logger.info('calling "%s" in "%s"', ctx.message.content, ctx.guild.name)
-    bot.loop.create_task(ctx.message.add_reaction(emojis["command_seen"]))
-    bot.loop.create_task(ctx.trigger_typing())
+    atask(ctx.message.add_reaction(REACTIONS["command_seen"]))
+    atask(ctx.trigger_typing())
 
 
 @bot.after_invoke
 async def post_invoke(ctx: commands.Context):
-    bot.loop.create_task(
-        ctx.message.add_reaction(
-            emojis["command_failed"]
-            if ctx.command_failed
-            else emojis["command_succeeded"]
-        )
-    )
+    atask(ctx.message.add_reaction(REACTIONS["command_succeeded"]))
 
 
 @bot.command()
@@ -78,12 +70,12 @@ async def status(ctx: commands.Context):
     """
     lines = [
         f"Running version `{BOT_VERSION}`",
-        "Try the new `b.choose` command!",
+        "Now with better error handling!",
     ]
     for reporter in bot.status_reporters:
         lines.extend(reporter(ctx))
     embed = discord.Embed(description="\n".join(lines))
-    bot.loop.create_task(ctx.reply(embed=embed))
+    atask(ctx.reply(embed=embed))
 
 
 @bot.command(aliases=("j", "jk"))
@@ -93,7 +85,7 @@ async def joke(ctx: commands.Context):
     """
     jokefn = random.choice(joke_pool)
     content = await ctx.bot.loop.run_in_executor(None, jokefn)
-    bot.loop.create_task(ctx.reply(content))
+    atask(ctx.reply(content))
 
 
 @bot.command()
@@ -105,7 +97,7 @@ async def rate(ctx: commands.Context, user: discord.Member):
         rating = 10
     else:
         rating = random.randint(1, 9)
-    bot.loop.create_task(ctx.reply(f"{user.mention} is {rating}/10."))
+    atask(ctx.reply(f"{user.mention} is {rating}/10."))
 
 
 @bot.command()
@@ -127,7 +119,7 @@ async def choose(ctx: commands.Context, *mentions: Union[discord.Role, discord.M
         if selection_set
         else "Nobody to choose!"
     )
-    bot.loop.create_task(ctx.reply(reply_content))
+    atask(ctx.reply(reply_content))
 
 
 def run_bot():
@@ -167,17 +159,17 @@ def run_bot():
 
     # set up logging
     log_level = args.log or config.get("log") or logging.INFO
+    logger.debug("set logging level to %s", log_level)
     logging.basicConfig(
         format="%(asctime)s:%(levelname)s:%(name)s:%(funcName)s: %(message)s",
         level=log_level,
     )
-    logger.debug("set logging level to %s", log_level)
     logging.getLogger("discord").setLevel(logging.WARNING)
 
     bot.status_reporters = []
     bot.add_cog(MusicCog(bot))
 
-    # bot.on_command_error = handle_command_error
+    bot.on_command_error = handle_command_error
     bot.run(config["token"])
 
 
