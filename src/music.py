@@ -118,6 +118,7 @@ class MusicContext:
             assert self.song_message is not None
             atask(self.song_message.edit(embed=embed))
         elif active:
+            # repost a message to the bottom of a channel so that it's easier to see
             if self.song_message:
                 atask(self.song_message.delete())
             self.song_message = await self.ctx.send(embed=embed)
