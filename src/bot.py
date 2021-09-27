@@ -150,12 +150,14 @@ def run_bot():
     config = {}
     try:
         config = toml.load("config.toml")
-    except toml.TomlDecodeError:
+    except toml.TomlDecodeError as e:
         logger.error('Failed to parse "config.toml".')
+        logger.exception(e, stack_info=False)
 
-    if "token" not in config and "token" not in args:
+    if "token" not in config and not args.token:
         print("Please provide an API token to use!")
         print('Add it to "config.toml" or provide with --token.')
+        return
 
     # set up logging
     log_level = args.log or config.get("log") or logging.INFO
