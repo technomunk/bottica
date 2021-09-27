@@ -172,7 +172,7 @@ def run_bot():
     bot.add_cog(MusicCog(bot))
 
     bot.on_command_error = handle_command_error
-    bot.run(config["token"])
+    bot.run(args.token or config["token"])
 
 
 if __name__ == "__main__":
