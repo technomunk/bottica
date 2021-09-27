@@ -95,7 +95,7 @@ async def rate(ctx: commands.Context, user: discord.Member):
     """
     if user.id == 305440304528359424 or user == bot.user:
         rating = 10
-    if user.id == 420481371253768203:
+    elif user.id == 420481371253768203:
         rating = 9001
     else:
         rating = random.randint(1, 9)
