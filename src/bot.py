@@ -17,7 +17,7 @@ from error import atask, event_loop, handle_command_error
 from music import MusicCog
 from response import REACTIONS
 
-BOT_VERSION = "0.9.0"
+BOT_VERSION = "0.9.1"
 
 intents = discord.Intents.default()
 intents.typing = False
@@ -70,7 +70,7 @@ async def status(ctx: commands.Context):
     """
     lines = [
         f"Running version `{BOT_VERSION}`",
-        "Now with better error handling!",
+        "Now with better documentation!",
     ]
     for reporter in bot.status_reporters:
         lines.extend(reporter(ctx))

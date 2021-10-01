@@ -27,14 +27,16 @@ class AuthorNotVoiceConnectedError(commands.CommandError):
         super().__init__(message="You need to be in a voice channel!")
 
 
+class AuthorNotInPlayingChannel(commands.CommandError):
+    def __init__(self):
+        super().__init__(
+            message="You need to be in the same channel as playing Bottica!"
+        )
+
+
 async def check_author_is_voice_connected(ctx: commands.Context) -> bool:
     if ctx.author.voice is None:
         raise AuthorNotVoiceConnectedError()
-
-    if ctx.voice_client is None:
-        await ctx.author.voice.channel.connect()
-    else:
-        await ctx.voice_client.move_to(ctx.author.voice.channel)
     return True
 
 
@@ -91,12 +93,30 @@ class MusicContext:
         self.state.last_ctx = self
 
     def is_playing(self) -> bool:
-        return self.ctx.voice_client is not None and self.ctx.voice_client.is_playing()
+        return self.voice_client is not None and self.voice_client.is_playing()
 
     def __getattr__(self, name: str) -> Any:
         if name in self.__dict__:
             return getattr(self, name)
         return getattr(self.ctx, name)
+
+    async def join_or_throw(self, channel: discord.VoiceChannel):
+        """
+        Join provided voice channel or throw a relevant exception.
+        """
+        if all(
+            (
+                self.is_playing(),
+                self.voice_client,
+                self.voice_client.channel != channel,  # type: ignore
+            )
+        ):
+            raise AuthorNotInPlayingChannel()
+
+        if self.ctx.voice_client is None:
+            await channel.connect()
+        else:
+            await self.voice_client.move_to(channel)  # type: ignore
 
     async def display_current_song_info(self, active: bool) -> None:
         song = self.song_queue.head
@@ -129,6 +149,7 @@ class MusicContext:
     def play_next(self) -> None:
         """
         Play the next song in the queue.
+        If Bottica is not playing she will join the issuer's voice channel.
         """
         if self.voice_client is None or self.voice_client.channel is None:
             raise RuntimeError("Bot is not connected to voice to play.")
@@ -203,7 +224,7 @@ class MusicContext:
         self.state.song_message = value
 
 
-class MusicCog(commands.Cog, name="Music"):
+class MusicCog(commands.Cog, name="Music"):  # type: ignore
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
         ytdl_options = {
@@ -277,9 +298,13 @@ class MusicCog(commands.Cog, name="Music"):
 
         for info in infos:
             if info.get("_type", "video") != "video":
-                embed = discord.Embed(description=f"Skipping {info.get('url')} as it is not a video.")
+                embed = discord.Embed(
+                    description=f"Skipping {info.get('url')} as it is not a video."
+                )
                 atask(ctx.ctx.reply(embed=embed))
-                logger.warning("Skipping %s as it is a %s", info.get("url"), info["_type"])
+                logger.warning(
+                    "Skipping %s as it is a %s", info.get("url"), info["_type"]
+                )
                 continue
             key = extract_key(info)
             song = self.song_registry.get(key)
@@ -300,14 +325,16 @@ class MusicCog(commands.Cog, name="Music"):
     async def play(self, ctx: commands.Context, query: str):
         """
         Play songs found at provided query.
+        Bottica will join issuer's voice channel if possible.
         """
+        mctx = self._wrap_context(ctx)
+        await mctx.join_or_throw(ctx.author.voice.channel)
         # download should be run asynchronously as to avoid blocking the bot
         req = await self.bot.loop.run_in_executor(
             None,
             lambda: self.ytdl.extract_info(query, process=False, download=False),
         )
         req_type = req.get("_type", "video")
-        mctx = self._wrap_context(ctx)
         if req_type == "playlist":
             atask(self._queue_audio(mctx, [entry for entry in req["entries"]]), ctx)
         else:
@@ -318,8 +345,10 @@ class MusicCog(commands.Cog, name="Music"):
     async def playall(self, ctx: commands.Context):
         """
         Play all songs that were ever queued on this server.
+        Bottica will join issuer's voice channel if possible.
         """
         mctx = self._wrap_context(ctx)
+        await mctx.join_or_throw(ctx.author.voice.channel)
         mctx.song_queue.extend(mctx.song_set)
         if not mctx.is_playing():
             mctx.play_next()
