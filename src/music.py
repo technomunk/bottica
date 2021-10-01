@@ -29,9 +29,7 @@ class AuthorNotVoiceConnectedError(commands.CommandError):
 
 class AuthorNotInPlayingChannel(commands.CommandError):
     def __init__(self):
-        super().__init__(
-            message="You need to be in the same channel as playing Bottica!"
-        )
+        super().__init__(message="You need to be in the same channel as playing Bottica!")
 
 
 async def check_author_is_voice_connected(ctx: commands.Context) -> bool:
@@ -125,9 +123,7 @@ class MusicContext:
                 atask(self.song_message.delete())
             return
 
-        embed = discord.Embed(
-            description=f"{song.pretty_link} <> {format_duration(song.duration)}"
-        )
+        embed = discord.Embed(description=f"{song.pretty_link} <> {format_duration(song.duration)}")
 
         reuse = False
         if active and self.song_message is not None:
@@ -181,9 +177,7 @@ class MusicContext:
                 self.play_next()
             elif self.song_message:
                 if len(self.song_queue) > 1:
-                    atask(
-                        self.song_message.edit(embed=discord.Embed(description="..."))
-                    )
+                    atask(self.song_message.edit(embed=discord.Embed(description="...")))
                 else:
                     atask(self.song_message.delete())
 
@@ -248,8 +242,7 @@ class MusicCog(commands.Cog, name="Music"):  # type: ignore
     @commands.Cog.listener()
     async def on_ready(self):
         self.guild_states = {
-            guild.id: MusicGuildState(self.song_registry, guild.id)
-            for guild in self.bot.guilds
+            guild.id: MusicGuildState(self.song_registry, guild.id) for guild in self.bot.guilds
         }
         logger.info(
             "MusicCog initialized with %d songs and %d states",
@@ -269,11 +262,7 @@ class MusicCog(commands.Cog, name="Music"):  # type: ignore
         if member.bot or after.channel is None:
             return
         state = self.guild_states.get(after.channel.guild.id)
-        if (
-            state is None
-            or state.last_ctx is None
-            or state.last_ctx.voice_client is None
-        ):
+        if any((state is None, state.last_ctx is None, state.last_ctx.voice_client is None)):  # type: ignore
             return
         if after.channel == state.last_ctx.voice_client.channel:
             if not state.last_ctx.is_playing():
@@ -302,9 +291,7 @@ class MusicCog(commands.Cog, name="Music"):  # type: ignore
                     description=f"Skipping {info.get('url')} as it is not a video."
                 )
                 atask(ctx.ctx.reply(embed=embed))
-                logger.warning(
-                    "Skipping %s as it is a %s", info.get("url"), info["_type"]
-                )
+                logger.warning("Skipping %s as it is a %s", info.get("url"), info["_type"])
                 continue
             key = extract_key(info)
             song = self.song_registry.get(key)
@@ -428,7 +415,5 @@ class MusicCog(commands.Cog, name="Music"):  # type: ignore
         """
         mctx = self._wrap_context(ctx)
         if not mctx.is_playing():
-            atask(
-                ctx.reply("I'm not playing anything." + random.choice(response.FAILS))
-            )
+            atask(ctx.reply("I'm not playing anything." + random.choice(response.FAILS)))
         mctx.play_next()

@@ -117,9 +117,7 @@ async def choose(ctx: commands.Context, *mentions: Union[discord.Role, discord.M
         else:
             raise TypeError
     reply_content = (
-        random.choice(tuple(selection_set)).mention
-        if selection_set
-        else "Nobody to choose!"
+        random.choice(tuple(selection_set)).mention if selection_set else "Nobody to choose!"
     )
     atask(ctx.reply(reply_content))
 
