@@ -1,5 +1,8 @@
 # Bottica
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 A personal music-playing discord bot project.
 
 ## Using
@@ -13,16 +16,16 @@ Start by using `b.help` which will print all available commands.
 - Get [python 3](https://www.python.org/downloads/).
 - Create a virtual environment: `python3 -m venv <venv>`
 - Activate virtual environment:
-  + Windows: `source <venv>/Scripts/activate`
-  + Linux/MacOS: `source <venv>/bin/activate`
+	+ Windows: `source <venv>/Scripts/activate`
+	+ Linux/MacOS: `source <venv>/bin/activate`
 - Install requirements: `pip install -r requirements.txt`
 - Get bot token from discord `https://discord.com/developers/applications/<app_id>/bot`
 
 ## Running
 
 - Activate virtual environment:
-  + Windows: `source <venv>/Scripts/activate`
-  + Linux/MacOS: `source <venv>/bin/activate`
+	+ Windows: `source <venv>/Scripts/activate`
+	+ Linux/MacOS: `source <venv>/bin/activate`
 - Run the bot: `python3 src/bot.py`
 
 ## Wishlist
