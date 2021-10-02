@@ -14,10 +14,10 @@ from discord.mentions import AllowedMentions
 from joke import facts, jokes, quotes
 
 from error import atask, event_loop, handle_command_error
-from music import MusicCog
+from music.cog import MusicCog
 from response import REACTIONS
 
-BOT_VERSION = "0.9.3"
+BOT_VERSION = "0.10.0"
 
 intents = discord.Intents.default()
 intents.typing = False
@@ -70,7 +70,7 @@ async def status(ctx: commands.Context):
     """
     lines = [
         f"Running version `{BOT_VERSION}`",
-        "Now with better documentation!",
+        "Bottica feelings too you know!",
     ]
     for reporter in bot.status_reporters:
         lines.extend(reporter(ctx))
@@ -78,7 +78,7 @@ async def status(ctx: commands.Context):
     atask(ctx.reply(embed=embed))
 
 
-@bot.command(aliases=("j", "jk"))
+@bot.command(aliases=("jk"))
 async def joke(ctx: commands.Context):
     """
     Tell a joke.

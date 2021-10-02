@@ -384,3 +384,21 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
         if not mctx.is_playing():
             atask(ctx.reply("I'm not playing anything." + random.choice(response.FAILS)))
         mctx.play_next()
+
+    @cmd.command(aliases=("j",))
+    async def join(self, ctx: cmd.Context, channel: Optional[discord.VoiceChannel] = None):
+        """
+        Make Bottica join a given voice channel if provided or issuer's voice channel.
+        """
+        if channel is None:
+            # rely on exception from provided check
+            check.author_is_voice_connected(ctx)
+            channel = ctx.author.voice
+        permissions = channel.permissions_for(ctx.me)
+        if not permissions.connect or not permissions.speak:
+            raise BotLacksVoicePermissions(channel)
+
+        if ctx.voice_client is None:
+            atask(channel.connect())
+        else:
+            atask(ctx.voice_client.move_to(channel))
