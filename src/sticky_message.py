@@ -29,7 +29,7 @@ class StickyMessage:
             atask(self._message.delete())
             self._message = await channel.send(content, **kwargs)
         else:
-            atask(self._message.edit(content, **kwargs))
+            atask(self._message.edit(content=content, **kwargs))
 
     def delete(self):
         atask(self._message.delete())
