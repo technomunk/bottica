@@ -39,7 +39,7 @@ async def safe_coro(coroutine: Coroutine, ctx: Optional[commands.Context] = None
 
 def atask(coroutine: Coroutine, ctx: Optional[commands.Context] = None):
     """
-    Schedule a coroutine to be executed on bot's event loop without awaits its result.
+    Schedule a coroutine to be executed on bot's event loop without awaiting its result.
     """
     event_loop.create_task(safe_coro(coroutine, ctx))
 

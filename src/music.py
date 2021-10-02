@@ -7,6 +7,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import discord
 from discord.ext import commands
+from sticky_message import StickyMessage
 from youtube_dl import YoutubeDL
 
 import response
@@ -73,7 +74,7 @@ class MusicGuildState:
         self.queue = SongQueue(registry)
         self.set = SongSet(registry, f"{GUILD_SET_FOLDER}{guild_id}.txt")
         self.is_shuffling = False
-        self.song_message: Optional[discord.Message] = None
+        self.song_message: Optional[StickyMessage] = None
         self.last_ctx: Optional[MusicContext] = None
 
 
@@ -125,22 +126,16 @@ class MusicContext:
 
         embed = discord.Embed(description=f"{song.pretty_link} <> {format_duration(song.duration)}")
 
-        reuse = False
-        if active and self.song_message is not None:
-            hist = await self.ctx.history(limit=1).flatten()
-            reuse = hist[0] == self.song_message
-
-        if reuse:
-            assert self.song_message is not None
-            atask(self.song_message.edit(embed=embed))
-        elif active:
-            # repost a message to the bottom of a channel so that it's easier to see
-            if self.song_message:
-                atask(self.song_message.delete())
-            self.song_message = await self.ctx.send(embed=embed)
+        if active:
+            if self.song_message is not None:
+                atask(self.song_message.update(embed=embed))
+            else:
+                self.song_message = await StickyMessage.send(self.ctx.channel, embed=embed)
         else:
-            self.song_message = None
-            atask(self.ctx.reply(embed=embed))
+            if self.song_message is not None:
+                self.song_message.delete()
+                self.song_message = None
+            atask(self.ctx.send(embed=embed))
 
     def play_next(self) -> None:
         """
@@ -175,11 +170,12 @@ class MusicContext:
 
             if any(not member.bot for member in self.voice_client.channel.members):
                 self.play_next()
-            elif self.song_message:
+            elif self.song_message is not None:
                 if len(self.song_queue) > 1:
-                    atask(self.song_message.edit(embed=discord.Embed(description="...")))
+                    atask(self.song_message.update(embed=discord.Embed(description="...")))
                 else:
-                    atask(self.song_message.delete())
+                    self.song_message.delete()
+                    self.song_message = None
 
         logger.debug("playing %s in %s", song.key, self.ctx.guild.name)
         self.voice_client.play(
@@ -210,11 +206,11 @@ class MusicContext:
         self.state.is_shuffling = value
 
     @property
-    def song_message(self) -> Optional[discord.Message]:
+    def song_message(self) -> Optional[StickyMessage]:
         return self.state.song_message
 
     @song_message.setter
-    def song_message(self, value: Optional[discord.Message]):
+    def song_message(self, value: Optional[StickyMessage]):
         self.state.song_message = value
 
 
