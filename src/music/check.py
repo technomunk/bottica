@@ -18,6 +18,7 @@ def bot_has_voice_permission_in_author_channel(ctx: cmd.Context) -> bool:
         permissions = ctx.author.voice.channel.permissions_for(ctx.me)
         if not permissions.connect or not permissions.speak:
             raise BotLacksVoicePermissions(ctx.author.voice.channel)
+        return True
     return False
 
 
