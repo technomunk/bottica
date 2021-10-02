@@ -7,6 +7,7 @@ from typing import Coroutine, Optional
 
 from discord import Embed
 from discord.ext import commands
+from report_err import ReportableError
 
 from response import REACTIONS
 from util import convertee_names
@@ -45,11 +46,20 @@ def atask(coroutine: Coroutine, ctx: Optional[commands.Context] = None):
 
 
 async def handle_command_error(ctx: commands.Context, error: commands.CommandError):
+    atask(ctx.message.remove_reaction(REACTIONS["command_succeeded"], ctx.me))
+    atask(ctx.message.add_reaction(REACTIONS["command_failed"]))
     if isinstance(error, commands.UserInputError):
         if isinstance(error, commands.BadUnionArgument):
             param_name = error.errors[0].argument
             reply_text = f"{param_name} is not a {convertee_names(error.converters)}"
             atask(ctx.reply(reply_text))
-        atask(ctx.message.remove_reaction(REACTIONS["command_succeeded"]))
-        atask(ctx.message.add_reaction(REACTIONS["command_failed"]))
-    logger.warning(error)
+    elif isinstance(error, ReportableError):
+        logger.warning(error)
+        atask(ctx.reply(error))
+    else:
+        logger.exception(error)
+        embed = Embed(
+            title=":warning: Internal Error :warning:",
+            description="Something went wrong executing the command.",
+        )
+        atask(ctx.message.reply(embed=embed))

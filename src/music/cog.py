@@ -6,13 +6,15 @@ from os import makedirs
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import discord
-from discord.ext import commands
-from sticky_message import StickyMessage
+import discord.ext.commands as cmd
 from youtube_dl import YoutubeDL
 
 import response
 from error import atask
-from song import SongInfo, SongQueue, SongRegistry, SongSet
+from music import check
+from music.error import AuthorNotInPlayingChannel, BotLacksVoicePermissions
+from music.song import SongInfo, SongQueue, SongRegistry, SongSet
+from sticky_message import StickyMessage
 from util import format_duration, onoff
 
 DATA_FOLDER = "data/"
@@ -21,30 +23,6 @@ GUILD_SET_FOLDER = DATA_FOLDER + ".sets/"
 SONG_REGISTRY_FILENAME = DATA_FOLDER + "songs.txt"
 
 logger = logging.getLogger(__name__)
-
-
-class AuthorNotVoiceConnectedError(commands.CommandError):
-    def __init__(self) -> None:
-        super().__init__(message="You need to be in a voice channel!")
-
-
-class AuthorNotInPlayingChannel(commands.CommandError):
-    def __init__(self):
-        super().__init__(message="You need to be in the same channel as playing Bottica!")
-
-
-async def check_author_is_voice_connected(ctx: commands.Context) -> bool:
-    if ctx.author.voice is None:
-        raise AuthorNotVoiceConnectedError()
-    return True
-
-
-def check_author_is_dj(ctx: commands.Context) -> bool:
-    return "@dj" in (role.name for role in ctx.author.roles)
-
-
-def check_bot_is_voice_connected(ctx: commands.Context) -> bool:
-    return ctx.voice_client is not None and ctx.voice_client.is_connected()
 
 
 def extract_key(info: dict) -> Tuple[str, str]:
@@ -81,7 +59,7 @@ class MusicGuildState:
 class MusicContext:
     def __init__(
         self,
-        ctx: commands.Context,
+        ctx: cmd.Context,
         registry: SongRegistry,
         states: Dict[int, MusicGuildState],
     ) -> None:
@@ -103,13 +81,7 @@ class MusicContext:
         """
         Join provided voice channel or throw a relevant exception.
         """
-        if all(
-            (
-                self.is_playing(),
-                self.voice_client,
-                self.voice_client.channel != channel,  # type: ignore
-            )
-        ):
+        if self.is_playing() and self.voice_client.channel != channel:  # type: ignore
             raise AuthorNotInPlayingChannel()
 
         if self.ctx.voice_client is None:
@@ -214,8 +186,8 @@ class MusicContext:
         self.state.song_message = value
 
 
-class MusicCog(commands.Cog, name="Music"):  # type: ignore
-    def __init__(self, bot: commands.Bot) -> None:
+class MusicCog(cmd.Cog, name="Music"):  # type: ignore
+    def __init__(self, bot: cmd.Bot) -> None:
         self.bot = bot
         ytdl_options = {
             "format": "bestaudio",
@@ -232,10 +204,10 @@ class MusicCog(commands.Cog, name="Music"):  # type: ignore
         makedirs(AUDIO_FOLDER, exist_ok=True)
         makedirs(GUILD_SET_FOLDER, exist_ok=True)
 
-    def _wrap_context(self, ctx: commands.Context) -> MusicContext:
+    def _wrap_context(self, ctx: cmd.Context) -> MusicContext:
         return MusicContext(ctx, self.song_registry, self.guild_states)
 
-    @commands.Cog.listener()
+    @cmd.Cog.listener()
     async def on_ready(self):
         self.guild_states = {
             guild.id: MusicGuildState(self.song_registry, guild.id) for guild in self.bot.guilds
@@ -247,7 +219,7 @@ class MusicCog(commands.Cog, name="Music"):  # type: ignore
         )
         self.bot.status_reporters.append(lambda ctx: self.status(ctx))
 
-    @commands.Cog.listener()
+    @cmd.Cog.listener()
     async def on_voice_state_update(
         self,
         member: discord.Member,
@@ -265,7 +237,7 @@ class MusicCog(commands.Cog, name="Music"):  # type: ignore
                 state.last_ctx.play_next()
                 logger.debug("resuming playback")
 
-    def status(self, ctx: commands.Context) -> Iterable[str]:
+    def status(self, ctx: cmd.Context) -> Iterable[str]:
         state = self.guild_states[ctx.guild.id]
         return (
             f"{len(state.set)} songs in guild set",
@@ -303,9 +275,9 @@ class MusicCog(commands.Cog, name="Music"):  # type: ignore
             if not ctx.is_playing():
                 ctx.play_next()
 
-    @commands.command(aliases=("p",))
-    @commands.check(check_author_is_voice_connected)
-    async def play(self, ctx: commands.Context, query: str):
+    @cmd.command(aliases=("p",))
+    @cmd.check(check.bot_has_voice_permission_in_author_channel)
+    async def play(self, ctx: cmd.Context, query: str):
         """
         Play songs found at provided query.
         Bottica will join issuer's voice channel if possible.
@@ -323,9 +295,9 @@ class MusicCog(commands.Cog, name="Music"):  # type: ignore
         else:
             atask(self._queue_audio(mctx, [req]), ctx)
 
-    @commands.command(aliases=("pa",))
-    @commands.check(check_author_is_voice_connected)
-    async def playall(self, ctx: commands.Context):
+    @cmd.command(aliases=("pa",))
+    @cmd.check(check.bot_has_voice_permission_in_author_channel)
+    async def playall(self, ctx: cmd.Context):
         """
         Play all songs that were ever queued on this server.
         Bottica will join issuer's voice channel if possible.
@@ -336,27 +308,26 @@ class MusicCog(commands.Cog, name="Music"):  # type: ignore
         if not mctx.is_playing():
             mctx.play_next()
 
-    @commands.command()
-    @commands.check(check_bot_is_voice_connected)
-    async def pause(self, ctx: commands.Context):
+    @cmd.command()
+    @cmd.check(check.bot_is_voice_connected)
+    async def pause(self, ctx: cmd.Context):
         """
         Pause current playback.
         """
         if not ctx.voice_client.is_paused():
             ctx.voice_client.pause()
 
-    @commands.command(aliases=("unpause",))
-    @commands.check(check_bot_is_voice_connected)
-    async def resume(self, ctx: commands.Context):
+    @cmd.command(aliases=("unpause",))
+    @cmd.check(check.bot_is_voice_connected)
+    async def resume(self, ctx: cmd.Context):
         """
         Resume paused playback.
         """
         if ctx.voice_client.is_paused():
             ctx.voice_client.resume()
 
-    @commands.command(aliases=("pq",))
-    @commands.check(check_author_is_dj)
-    async def purge(self, ctx: commands.Context):
+    @cmd.command(aliases=("pq",))
+    async def purge(self, ctx: cmd.Context):
         """
         Drop any songs queued for playback.
         """
@@ -365,8 +336,8 @@ class MusicCog(commands.Cog, name="Music"):  # type: ignore
         if ctx.voice_client is not None:
             ctx.voice_client.stop()
 
-    @commands.command()
-    async def song(self, ctx: commands.Context, active: bool = False):
+    @cmd.command()
+    async def song(self, ctx: cmd.Context, active: bool = False):
         """
         Display information about the current song.
         """
@@ -376,8 +347,8 @@ class MusicCog(commands.Cog, name="Music"):  # type: ignore
         else:
             atask(ctx.reply("Not playing anything at the moment."))
 
-    @commands.command(aliases=("q",))
-    async def queue(self, ctx: commands.Context):
+    @cmd.command(aliases=("q",))
+    async def queue(self, ctx: cmd.Context):
         """
         Display information about the current song queue.
         """
@@ -390,8 +361,8 @@ class MusicCog(commands.Cog, name="Music"):  # type: ignore
         else:
             atask(ctx.reply("Nothing queued at the moment."))
 
-    @commands.command()
-    async def shuffle(self, ctx: commands.context, state: Optional[bool] = None):
+    @cmd.command()
+    async def shuffle(self, ctx: cmd.context, state: Optional[bool] = None):
         """
         Manipulate whether the queued songs should be shuffled.
         Sets the shuffling of the queue to provided value or prints whether the queue
@@ -404,8 +375,8 @@ class MusicCog(commands.Cog, name="Music"):  # type: ignore
         else:
             mctx.is_shuffling = state
 
-    @commands.command(aliases=("n",))
-    async def next(self, ctx: commands.Context):
+    @cmd.command(aliases=("n",))
+    async def next(self, ctx: cmd.Context):
         """
         Skip the current song.
         """
