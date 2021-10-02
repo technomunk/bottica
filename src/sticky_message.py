@@ -10,6 +10,7 @@ class StickyMessage:
     A message that sticks to the bottom of a channel until deletion.
     If a message is not the freshes in a channel after an update it will be resent.
     """
+
     def __init__(self, message: discord.Message) -> None:
         self._message = message
 

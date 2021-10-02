@@ -15,4 +15,4 @@ class AuthorNotInPlayingChannel(ReportableError):
 
 class BotLacksVoicePermissions(ReportableError):
     def __init__(self, channel: discord.VoiceChannel):
-        super().__init__(f"Bottica lacks voice permissions for \"{channel.name}\"")
+        super().__init__(f'Bottica lacks voice permissions for "{channel.name}"')
