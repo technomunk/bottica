@@ -70,7 +70,7 @@ async def status(ctx: commands.Context):
     """
     lines = [
         f"Running version `{BOT_VERSION}`",
-        "Bottica feelings too you know!",
+        "Bottica has feelings too you know!",
     ]
     for reporter in bot.status_reporters:
         lines.extend(reporter(ctx))
