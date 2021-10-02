@@ -17,7 +17,7 @@ from error import atask, event_loop, handle_command_error
 from music import MusicCog
 from response import REACTIONS
 
-BOT_VERSION = "0.9.1"
+BOT_VERSION = "0.9.2"
 
 intents = discord.Intents.default()
 intents.typing = False

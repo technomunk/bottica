@@ -262,7 +262,7 @@ class MusicCog(commands.Cog, name="Music"):  # type: ignore
         if member.bot or after.channel is None:
             return
         state = self.guild_states.get(after.channel.guild.id)
-        if any((state is None, state.last_ctx is None, state.last_ctx.voice_client is None)):  # type: ignore
+        if state is None or state.last_ctx is None or state.last_ctx.voice_client is None:
             return
         if after.channel == state.last_ctx.voice_client.channel:
             if not state.last_ctx.is_playing():
