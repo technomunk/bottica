@@ -78,7 +78,7 @@ async def status(ctx: commands.Context):
     atask(ctx.reply(embed=embed))
 
 
-@bot.command(aliases=("jk"))
+@bot.command(aliases=("jk",))
 async def joke(ctx: commands.Context):
     """
     Tell a joke.
