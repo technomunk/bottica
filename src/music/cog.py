@@ -393,7 +393,7 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
         if channel is None:
             # rely on exception from provided check
             check.author_is_voice_connected(ctx)
-            channel = ctx.author.voice
+            channel = ctx.author.voice.channel
         permissions = channel.permissions_for(ctx.me)
         if not permissions.connect or not permissions.speak:
             raise BotLacksVoicePermissions(channel)
