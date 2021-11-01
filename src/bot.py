@@ -11,7 +11,6 @@ import toml
 from discord.ext import commands
 from discord.ext.commands import Bot as DiscordBot
 from discord.mentions import AllowedMentions
-from joke import facts, jokes, quotes
 
 from error import atask, event_loop, handle_command_error
 from music.cog import MusicCog
@@ -30,16 +29,6 @@ bot = DiscordBot(
     allowed_mentions=AllowedMentions(users=True),
 )
 logger = logging.getLogger(__name__)
-
-joke_pool = (
-    jokes.geek,
-    jokes.icanhazdad,
-    jokes.chucknorris,
-    jokes.icndb,
-    quotes.quotesondesign,
-    quotes.stormconsultancy,
-    facts.cat,
-)
 
 
 @bot.event
@@ -74,16 +63,6 @@ async def status(ctx: commands.Context):
         lines.extend(reporter(ctx))
     embed = discord.Embed(description="\n".join(lines))
     atask(ctx.reply(embed=embed))
-
-
-@bot.command(aliases=("jk",))
-async def joke(ctx: commands.Context):
-    """
-    Tell a joke.
-    """
-    jokefn = random.choice(joke_pool)
-    content = await ctx.bot.loop.run_in_executor(None, jokefn)
-    atask(ctx.reply(content))
 
 
 @bot.command()
