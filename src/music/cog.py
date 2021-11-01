@@ -78,9 +78,7 @@ class MusicContext:
         return getattr(self.ctx, name)
 
     async def join_or_throw(self, channel: discord.VoiceChannel):
-        """
-        Join provided voice channel or throw a relevant exception.
-        """
+        """Join provided voice channel or throw a relevant exception."""
         if self.is_playing() and self.voice_client.channel != channel:  # type: ignore
             raise AuthorNotInPlayingChannel()
 
@@ -317,26 +315,20 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
     @cmd.command()
     @cmd.check(check.bot_is_voice_connected)
     async def pause(self, ctx: cmd.Context):
-        """
-        Pause current playback.
-        """
+        """Pause current playback."""
         if not ctx.voice_client.is_paused():
             ctx.voice_client.pause()
 
     @cmd.command(aliases=("unpause",))
     @cmd.check(check.bot_is_voice_connected)
     async def resume(self, ctx: cmd.Context):
-        """
-        Resume paused playback.
-        """
+        """Resume paused playback."""
         if ctx.voice_client.is_paused():
             ctx.voice_client.resume()
 
     @cmd.command(aliases=("pq",))
     async def purge(self, ctx: cmd.Context):
-        """
-        Drop any songs queued for playback.
-        """
+        """Drop any songs queued for playback."""
         mctx = self._wrap_context(ctx)
         mctx.song_queue.clear()
         if ctx.voice_client is not None:
@@ -345,9 +337,7 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
 
     @cmd.command()
     async def song(self, ctx: cmd.Context, active: bool = False):
-        """
-        Display information about the current song.
-        """
+        """Display information about the current song."""
         mctx = self._wrap_context(ctx)
         if mctx.is_playing() and mctx.song_queue.head is not None:
             atask(mctx.display_current_song_info(active), ctx)
@@ -356,9 +346,7 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
 
     @cmd.command(aliases=("q",))
     async def queue(self, ctx: cmd.Context):
-        """
-        Display information about the current song queue.
-        """
+        """Display information about the current song queue."""
         mctx = self._wrap_context(ctx)
         if mctx.is_playing() and mctx.song_queue:
             durstr = format_duration(mctx.song_queue.duration)
@@ -384,9 +372,7 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
 
     @cmd.command(aliases=("n",))
     async def next(self, ctx: cmd.Context):
-        """
-        Skip the current song.
-        """
+        """Skip the current song."""
         mctx = self._wrap_context(ctx)
         if not mctx.is_playing():
             atask(ctx.reply("I'm not playing anything." + random.choice(response.FAILS)))
@@ -394,9 +380,7 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
 
     @cmd.command(aliases=("j",))
     async def join(self, ctx: cmd.Context, channel: Optional[discord.VoiceChannel] = None):
-        """
-        Make Bottica join a given voice channel if provided or issuer's voice channel.
-        """
+        """Make Bottica join a given voice channel if provided or issuer's voice channel."""
         if channel is None:
             # rely on exception from provided check
             check.author_is_voice_connected(ctx)

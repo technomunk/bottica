@@ -65,9 +65,7 @@ async def post_invoke(ctx: commands.Context):
 
 @bot.command()
 async def status(ctx: commands.Context):
-    """
-    Print the bot status.
-    """
+    """Print the bot status."""
     lines = [
         f"Running version `{BOT_VERSION}`",
         "Now with 20% more privacy!",
@@ -90,9 +88,7 @@ async def joke(ctx: commands.Context):
 
 @bot.command()
 async def rate(ctx: commands.Context, user: discord.Member):
-    """
-    Rate the provided user out of 10.
-    """
+    """Rate the provided user out of 10."""
     if user.id == 305440304528359424 or user == bot.user:
         rating = 10
     elif user.id == 420481371253768203:
@@ -103,10 +99,15 @@ async def rate(ctx: commands.Context, user: discord.Member):
 
 
 @bot.command()
+async def roll(ctx: commands.Context, max: int = 100):
+    """Select a random number up to provided value or 100."""
+    value = random.randint(1, max)
+    atask(ctx.reply(f"{value} / {max}"))
+
+
+@bot.command()
 async def choose(ctx: commands.Context, *mentions: Union[discord.Role, discord.Member]):
-    """
-    Select a single member from provided mentions.
-    """
+    """Select a single member from provided mentions."""
     selection_set: Set[discord.Member] = set()
     for mention in mentions:
         if isinstance(mention, discord.Role):
