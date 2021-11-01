@@ -146,6 +146,7 @@ class MusicContext:
                 if len(self.song_queue) > 1:
                     atask(self.song_message.update(embed=discord.Embed(description="...")))
                 else:
+                    # pause playback. It will be resumed in Cog.on_voice_state_update()
                     self.song_message.delete()
                     self.song_message = None
 

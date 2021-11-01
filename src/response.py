@@ -1,11 +1,9 @@
 # Response messages.
 
 import random
-from typing import Sequence
-
 from discord.ext import commands
 
-SUCCESSES: Sequence[str] = (
+SUCCESSES = (
     "Success",
     "Done",
     ":100:",
@@ -13,7 +11,7 @@ SUCCESSES: Sequence[str] = (
     ":smile::+1:",
 )
 
-FAILS: Sequence[str] = (
+FAILS = (
     "Fail",
     "Bump",
     "Poop",

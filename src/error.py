@@ -53,6 +53,10 @@ async def handle_command_error(ctx: cmd.Context, error: cmd.CommandError):
             param_name = error.errors[0].argument
             reply_text = f"{param_name} is not a {convertee_names(error.converters)}"
             atask(ctx.reply(reply_text))
+        else:
+            atask(ctx.reply(error))
+    elif isinstance(error, cmd.CommandNotFound):
+        atask(ctx.reply(error))
     elif isinstance(error, ReportableError):
         logger.warning(error)
         atask(ctx.reply(error))
