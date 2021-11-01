@@ -1,3 +1,4 @@
 discord.py[voice]>=1.7.3
 youtube-dl>=2021.6.6
 toml>=0.10.2
+click>=8.0.1

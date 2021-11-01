@@ -17,10 +17,7 @@ from music.song import SongInfo, SongQueue, SongRegistry, SongSet
 from sticky_message import StickyMessage
 from util import format_duration, onoff
 
-DATA_FOLDER = "data/"
-AUDIO_FOLDER = DATA_FOLDER + "audio/"
-GUILD_SET_FOLDER = DATA_FOLDER + ".sets/"
-SONG_REGISTRY_FILENAME = DATA_FOLDER + "songs.txt"
+from .file import AUDIO_FOLDER, DATA_FOLDER, GUILD_SET_FOLDER, SONG_REGISTRY_FILENAME
 
 logger = logging.getLogger(__name__)
 
