@@ -142,16 +142,18 @@ class MusicContext:
                 # Bottica has already disconnected, no need to raise an error.
                 return
 
-            if any(not member.bot for member in self.voice_client.channel.members):
-                self.play_next()
-            elif self.song_message is not None:
-                if len(self.song_queue) > 1:
-                    # pause playback. It will be resumed in Cog.on_voice_state_update()
-                    atask(self.song_message.update(embed=discord.Embed(description="...")))
+            if len(self.song_queue) >= 1:
+                if any(not member.bot for member in self.voice_client.channel.members):
+                    self.play_next()
                 else:
+                    # pause playback. It will be resumed in Cog.on_voice_state_update()
+                    if self.song_message is not None:
+                        atask(self.song_message.update(embed=discord.Embed(description="...")))
+            else:
+                if self.song_message is not None:
                     self.song_message.delete()
                     self.song_message = None
-                    atask(self.voice_client.disconnect())
+                atask(self.voice_client.disconnect())
 
         logger.debug("playing %s in %s", song.key, self.ctx.guild.name)
         self.voice_client.play(
