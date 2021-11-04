@@ -139,7 +139,8 @@ class MusicContext:
                 # Bottica has already disconnected, no need to raise an error.
                 return
 
-            if len(self.song_queue) >= 1:
+            # queue still includes the current song, so check if length is > 1
+            if len(self.song_queue) > 1:
                 if any(not member.bot for member in self.voice_client.channel.members):
                     self.play_next()
                 else:
@@ -150,6 +151,7 @@ class MusicContext:
                 if self.song_message is not None:
                     self.song_message.delete()
                     self.song_message = None
+                self.song_queue.clear()
                 atask(self.voice_client.disconnect())
 
         logger.debug("playing %s in %s", song.key, self.ctx.guild.name)
