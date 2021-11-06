@@ -19,6 +19,7 @@ from util import format_duration, onoff
 
 from .file import AUDIO_FOLDER, DATA_FOLDER, GUILD_SET_FOLDER, SONG_REGISTRY_FILENAME
 
+ALLOWED_INFO_TYPES = ("video", "url")
 logger = logging.getLogger(__name__)
 
 
@@ -260,7 +261,7 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
                 infos[0], infos[idx] = infos[idx], infos[0]
 
         for info in infos:
-            if info.get("_type", "video") != "video":
+            if info.get("_type", "video") not in ALLOWED_INFO_TYPES:
                 embed = discord.Embed(
                     description=f"Skipping {info.get('url')} as it is not a video."
                 )
