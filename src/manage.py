@@ -3,7 +3,7 @@
 
 from os import listdir, remove, replace, stat
 from os.path import isfile
-from typing import List, Set, Tuple, cast
+from typing import Callable, List, Set, Tuple, cast
 
 import click
 
@@ -48,9 +48,12 @@ def prune(count: int, unit: str):
     remove_files = click.confirm(f"Totalling {format_size(bytes_removed)}. Delete them?")
 
     if remove_files:
+        def unlink_predicate(key: SongKey) -> bool:
+            return key in songs_to_unlink
+
         for filepath in listdir(GUILD_SET_FOLDER):
-            _unlink_songs_in(GUILD_SET_FOLDER + filepath, songs_to_unlink)
-        _unlink_songs_in(SONG_REGISTRY_FILENAME, songs_to_unlink)
+            _unlink_songs_in(GUILD_SET_FOLDER + filepath, unlink_predicate)
+        _unlink_songs_in(SONG_REGISTRY_FILENAME, unlink_predicate)
         for filename in files_to_remove:
             remove(AUDIO_FOLDER + filename)
         click.echo(f"Removed {format_size(bytes_removed)}. Have a good day!")
@@ -61,14 +64,16 @@ def prune(count: int, unit: str):
 @cli.command()
 def clean():
     """Remove any data not linked to Bottica."""
-    linked_filenames = set()
     tmp_filepath = SONG_REGISTRY_FILENAME + ".temp"
+    linked_filenames = set()
+    known_songs = set()
     with open(tmp_filepath, "w", encoding="utf8") as wfile:
         with open(SONG_REGISTRY_FILENAME, "r", encoding="utf8") as rfile:
             for line in rfile:
                 song_info = SongInfo.from_line(line)
                 if isfile(AUDIO_FOLDER + song_info.filename):
                     linked_filenames.add(song_info.filename)
+                    known_songs.add(song_info.key)
                     wfile.write(line)
                 else:
                     click.echo(f"Unlinked {song_info.key} as no file is found.")
@@ -79,6 +84,9 @@ def clean():
         if filename not in linked_filenames:
             remove(AUDIO_FOLDER + filename)
             click.echo(f"Removed {filename} as it's not linked.")
+
+    for filepath in listdir(GUILD_SET_FOLDER):
+        _unlink_songs_in(GUILD_SET_FOLDER + filepath, lambda key: key not in linked_filenames)
 
 
 def _gather_songs_larger_than(min_size: int) -> Tuple[Set[SongKey], List[str], int]:
@@ -105,16 +113,18 @@ def _gather_songs_larger_than(min_size: int) -> Tuple[Set[SongKey], List[str], i
     return songs_to_remove, files_to_remove, bytes_removed
 
 
-def _unlink_songs_in(filepath: str, songs_to_unlink: Set[SongKey], verbose: bool = False):
+def _unlink_songs_in(filepath: str, predicate: Callable[[SongKey], bool], verbose: bool = False):
     tmp_filename = filepath + ".temp"
     with open(tmp_filename, "w", encoding="utf8") as wfile:
         with open(filepath, "r", encoding="utf8") as rfile:
             for line in rfile:
                 key = cast(SongKey, tuple(line.strip().split(maxsplit=2)[:2]))
-                if key not in songs_to_unlink:
+                if predicate(key):
+                    # unlinking happens by not writing the line to the new file
+                    if verbose:
+                        click.echo(f"Unlinked {key} from {filepath}.")
+                else:
                     wfile.write(line)
-                elif verbose:
-                    click.echo(f"Unlinked {key} from {filepath}.")
     replace(tmp_filename, filepath)
 
 
