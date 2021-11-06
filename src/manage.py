@@ -63,7 +63,7 @@ def prune(count: int, unit: str):
 
 
 @cli.command()
-@click.option("-v", "--verbose")
+@click.option("-v", "--verbose", is_flag=True, help="Print cleaned entries.")
 def clean(verbose: bool):
     """Remove any data not linked to Bottica."""
     tmp_filepath = SONG_REGISTRY_FILENAME + ".temp"
