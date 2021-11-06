@@ -48,6 +48,7 @@ def prune(count: int, unit: str):
     remove_files = click.confirm(f"Totalling {format_size(bytes_removed)}. Delete them?")
 
     if remove_files:
+
         def unlink_predicate(key: SongKey) -> bool:
             return key in songs_to_unlink
 
@@ -62,7 +63,8 @@ def prune(count: int, unit: str):
 
 
 @cli.command()
-def clean():
+@click.option("-v", "--verbose")
+def clean(verbose: bool):
     """Remove any data not linked to Bottica."""
     tmp_filepath = SONG_REGISTRY_FILENAME + ".temp"
     linked_filenames = set()
@@ -75,7 +77,7 @@ def clean():
                     linked_filenames.add(song_info.filename)
                     known_songs.add(song_info.key)
                     wfile.write(line)
-                else:
+                elif verbose:
                     click.echo(f"Unlinked {song_info.key} as no file is found.")
 
     replace(tmp_filepath, SONG_REGISTRY_FILENAME)
@@ -83,10 +85,15 @@ def clean():
     for filename in listdir(AUDIO_FOLDER):
         if filename not in linked_filenames:
             remove(AUDIO_FOLDER + filename)
-            click.echo(f"Removed {filename} as it's not linked.")
+            if verbose:
+                click.echo(f"Removed {filename} as it's not linked.")
 
     for filepath in listdir(GUILD_SET_FOLDER):
-        _unlink_songs_in(GUILD_SET_FOLDER + filepath, lambda key: key not in linked_filenames)
+        _unlink_songs_in(
+            GUILD_SET_FOLDER + filepath,
+            lambda key: key not in linked_filenames,
+            verbose,
+        )
 
 
 def _gather_songs_larger_than(min_size: int) -> Tuple[Set[SongKey], List[str], int]:
