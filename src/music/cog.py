@@ -152,7 +152,7 @@ class MusicContext:
                     self.song_message.delete()
                     self.song_message = None
                 self.song_queue.clear()
-                logger.debug("Disconnecting...")
+                logger.debug("Disconnecting from %s.", self.ctx.guild.name)
                 atask(self.voice_client.disconnect())
 
         logger.debug("playing %s in %s", song.key, self.ctx.guild.name)
@@ -335,7 +335,7 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
         mctx.song_queue.clear()
         if ctx.voice_client is not None:
             ctx.voice_client.stop()
-            logger.debug("Disconnecting...")
+            logger.debug("Disconnecting from %s.", self.ctx.guild.name)
             atask(ctx.voice_client.disconnect())
 
     @cmd.command()
