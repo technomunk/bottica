@@ -91,7 +91,7 @@ def clean(verbose: bool):
     for filepath in listdir(GUILD_SET_FOLDER):
         _unlink_songs_in(
             GUILD_SET_FOLDER + filepath,
-            lambda key: key not in linked_filenames,
+            lambda key: key not in known_songs,
             verbose,
         )
 
