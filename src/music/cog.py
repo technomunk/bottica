@@ -108,7 +108,7 @@ class MusicContext:
     def play_next(self) -> None:
         """
         Play the next song in the queue.
-        If Bottica is not playing she will join the issuer's voice channel.
+        If I'm not playing I will join the issuer's voice channel.
         """
         if self.voice_client is None or self.voice_client.channel is None:
             raise RuntimeError("Bot is not connected to voice to play.")
@@ -287,7 +287,7 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
     async def play(self, ctx: cmd.Context, query: str):
         """
         Play songs found at provided query.
-        Bottica will join issuer's voice channel if possible.
+        I will join issuer's voice channel if possible.
         """
         mctx = self._wrap_context(ctx)
         await mctx.join_or_throw(ctx.author.voice.channel)
@@ -307,7 +307,7 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
     async def playall(self, ctx: cmd.Context):
         """
         Play all songs that were ever queued on this server.
-        Bottica will join issuer's voice channel if possible.
+        I will join issuer's voice channel if possible.
         """
         mctx = self._wrap_context(ctx)
         await mctx.join_or_throw(ctx.author.voice.channel)
