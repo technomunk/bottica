@@ -210,6 +210,7 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
 
         makedirs(AUDIO_FOLDER, exist_ok=True)
         makedirs(GUILD_SET_FOLDER, exist_ok=True)
+        self.bot.status_reporters.append(lambda ctx: self.status(ctx))
 
     def _wrap_context(self, ctx: cmd.Context) -> MusicContext:
         return MusicContext(ctx, self.song_registry, self.guild_states)
@@ -224,7 +225,6 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
             len(self.song_registry),
             len(self.guild_states),
         )
-        self.bot.status_reporters.append(lambda ctx: self.status(ctx))
 
     @cmd.Cog.listener()
     async def on_voice_state_update(
