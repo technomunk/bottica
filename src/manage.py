@@ -126,6 +126,7 @@ def normalize(verbose: bool, keep_file: bool):
                 except Exception as e:
                     print(e)
                 new_song_file.write(info.to_line())
+                new_song_file.write("\n")
 
     if keep_file:
         replace(new_registry_filename, SONG_REGISTRY_FILENAME)
