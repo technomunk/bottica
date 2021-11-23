@@ -2,12 +2,14 @@
 # Use caution when using while Bottica is running.
 
 from os import listdir, remove, replace, stat
-from os.path import isfile
+from os.path import isfile, splitext
 from typing import Callable, List, Set, Tuple, cast
 
 import click
+from ffmpeg_normalize import FFmpegNormalize
 
 from music.file import AUDIO_FOLDER, GUILD_SET_FOLDER, SONG_REGISTRY_FILENAME
+from music.normalize import normalize_song
 from music.song import SongInfo, SongKey
 from util import format_size
 
@@ -94,6 +96,40 @@ def clean(verbose: bool):
             lambda key: key not in known_songs,
             verbose,
         )
+
+
+@cli.command()
+@click.option("-v", "--verbose", is_flag=True, help="Print normalized entries.")
+@click.option("--keep-file", is_flag=True, help="Keep existing files on disk.")
+def normalize(verbose: bool, keep_file: bool):
+    """Loudness-normalize all songs in the audio folder."""
+    normalization_config = FFmpegNormalize(
+        target_level=-18,
+        print_stats=verbose,
+        debug=verbose,
+        audio_codec="libopus",
+        video_disable=True,
+        subtitle_disable=True,
+        metadata_disable=True,
+        chapters_disable=True,
+        output_format="opus",
+    )
+
+    with open(SONG_REGISTRY_FILENAME, "r", encoding="utf8") as old_song_file:
+        registry_filename, _ = splitext(SONG_REGISTRY_FILENAME)
+        new_registry_filename = registry_filename + "_norm.txt"
+        with open(new_registry_filename, "w", encoding="utf8") as new_song_file:
+            for line in old_song_file:
+                info = SongInfo.from_line(line)
+                try:
+                    normalize_song(info, normalization_config, keep_file)
+                except Exception as e:
+                    print(e)
+                new_song_file.write(info.to_line())
+                new_song_file.write("\n")
+
+    if keep_file:
+        replace(new_registry_filename, SONG_REGISTRY_FILENAME)
 
 
 def _gather_songs_larger_than(min_size: int) -> Tuple[Set[SongKey], List[str], int]:
