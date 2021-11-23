@@ -277,7 +277,8 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
                     None, lambda: self.ytdl.process_ie_result(info)
                 )
                 song = extract_song_info(song_info)
-                normalize_song(song)
+                # normalize song without blocking
+                await self.bot.loop.run_in_executor(None, lambda: normalize_song(song))
                 self.song_registry.put(song)
             ctx.song_set.add(song)
             ctx.song_queue.push(song)

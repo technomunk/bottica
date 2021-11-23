@@ -122,7 +122,8 @@ def normalize(verbose: bool, keep_file: bool):
             for line in old_song_file:
                 info = SongInfo.from_line(line)
                 try:
-                    normalize_song(info, normalization_config, keep_file)
+                    if info.ext != normalization_config.output_format:
+                        normalize_song(info, normalization_config, keep_file)
                 except Exception as e:
                     print(e)
                 new_song_file.write(info.to_line())
