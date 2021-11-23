@@ -129,7 +129,7 @@ def normalize(verbose: bool, keep_file: bool):
                 new_song_file.write(info.to_line())
                 new_song_file.write("\n")
 
-    if keep_file:
+    if not keep_file:
         replace(new_registry_filename, SONG_REGISTRY_FILENAME)
 
 
