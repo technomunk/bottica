@@ -1,3 +1,4 @@
+import logging
 from os import remove
 from os.path import splitext
 
@@ -6,9 +7,12 @@ from ffmpeg_normalize import FFmpegNormalize, MediaFile
 from .file import AUDIO_FOLDER
 from .song import SongInfo
 
+_logger = logging.getLogger(__name__)
+
 _default_config = FFmpegNormalize(
     target_level=-18,
     audio_codec="libopus",
+    sample_rate=96000,
     video_disable=True,
     subtitle_disable=True,
     metadata_disable=True,
@@ -27,6 +31,7 @@ def normalize_song(
     filename, _ = splitext(src_file)
     dst_file = filename + ext
 
+    _logger.debug("Normalizing %s => %s", src_file, dst_file)
     normalization = MediaFile(config, src_file, dst_file)
     normalization.run_normalization()
 
