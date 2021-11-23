@@ -16,7 +16,7 @@ from error import atask, event_loop, handle_command_error
 from music.cog import MusicCog
 from response import REACTIONS
 
-BOT_VERSION = "0.11.3"
+BOT_VERSION = "0.12.0"
 
 intents = discord.Intents.default()
 intents.typing = False
@@ -57,7 +57,7 @@ async def status(ctx: commands.Context):
     """Print the bot status."""
     lines = [
         f"Running version `{BOT_VERSION}`",
-        "How do you do, fellow humans?",
+        "WHAT? I CAN'T HEAR YOU!",
     ]
     for reporter in bot.status_reporters:
         lines.extend(reporter(ctx))

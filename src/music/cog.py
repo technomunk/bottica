@@ -12,12 +12,13 @@ from youtube_dl import YoutubeDL
 import response
 from error import atask
 from music import check
-from music.error import AuthorNotInPlayingChannel, BotLacksVoicePermissions
-from music.song import SongInfo, SongQueue, SongRegistry, SongSet
 from sticky_message import StickyMessage
 from util import format_duration, onoff
 
+from .error import AuthorNotInPlayingChannel, BotLacksVoicePermissions
 from .file import AUDIO_FOLDER, DATA_FOLDER, GUILD_SET_FOLDER, SONG_REGISTRY_FILENAME
+from .normalize import normalize_song
+from .song import SongInfo, SongQueue, SongRegistry, SongSet
 
 ALLOWED_INFO_TYPES = ("video", "url")
 logger = logging.getLogger(__name__)
@@ -276,6 +277,7 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
                     None, lambda: self.ytdl.process_ie_result(info)
                 )
                 song = extract_song_info(song_info)
+                normalize_song(song)
                 self.song_registry.put(song)
             ctx.song_set.add(song)
             ctx.song_queue.push(song)

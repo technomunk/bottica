@@ -100,13 +100,13 @@ def clean(verbose: bool):
 
 @cli.command()
 @click.option("-v", "--verbose", is_flag=True, help="Print normalized entries.")
-def normalize(verbose: bool):
+@click.option("--keep-file", is_flag=True, help="Keep existing files on disk.")
+def normalize(verbose: bool, keep_file: bool):
     """Loudness-normalize all songs in the audio folder."""
     normalization_config = FFmpegNormalize(
         target_level=-18,
         print_stats=verbose,
         debug=verbose,
-        progress=verbose,
         audio_codec="libopus",
         video_disable=True,
         subtitle_disable=True,
@@ -122,12 +122,13 @@ def normalize(verbose: bool):
             for line in old_song_file:
                 info = SongInfo.from_line(line)
                 try:
-                    normalize_song(info, normalization_config)
+                    normalize_song(info, normalization_config, keep_file)
                 except Exception as e:
                     print(e)
                 new_song_file.write(info.to_line())
 
-    # replace(new_registry_filename, SONG_REGISTRY_FILENAME)
+    if keep_file:
+        replace(new_registry_filename, SONG_REGISTRY_FILENAME)
 
 
 def _gather_songs_larger_than(min_size: int) -> Tuple[Set[SongKey], List[str], int]:
