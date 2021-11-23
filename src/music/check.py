@@ -4,7 +4,7 @@ import discord.ext.commands as cmd
 
 from music.error import AuthorNotVoiceConnectedError, BotLacksVoicePermissions
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
 def author_is_voice_connected(ctx: cmd.Context) -> bool:

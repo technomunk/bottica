@@ -21,7 +21,7 @@ from .normalize import normalize_song
 from .song import SongInfo, SongQueue, SongRegistry, SongSet
 
 ALLOWED_INFO_TYPES = ("video", "url")
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
 def extract_key(info: dict) -> Tuple[str, str]:
@@ -134,7 +134,7 @@ class MusicContext:
 
         def handle_after(error):
             if error is not None:
-                logger.error("encountered error: %s", error)
+                _logger.error("encountered error: %s", error)
                 return
 
             if self.voice_client is None:
@@ -154,10 +154,10 @@ class MusicContext:
                     self.song_message.delete()
                     self.song_message = None
                 self.song_queue.clear()
-                logger.debug("Disconnecting from %s.", self.ctx.guild.name)
+                _logger.debug("Disconnecting from %s.", self.ctx.guild.name)
                 atask(self.voice_client.disconnect())
 
-        logger.debug("playing %s in %s", song.key, self.ctx.guild.name)
+        _logger.debug("playing %s in %s", song.key, self.ctx.guild.name)
         self.voice_client.play(
             discord.FFmpegPCMAudio(f"{AUDIO_FOLDER}{song.filename}", options="-vn"),
             after=handle_after,
@@ -221,7 +221,7 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
         self.guild_states = {
             guild.id: MusicGuildState(self.song_registry, guild.id) for guild in self.bot.guilds
         }
-        logger.info(
+        _logger.info(
             "MusicCog initialized with %d songs and %d states",
             len(self.song_registry),
             len(self.guild_states),
@@ -243,7 +243,7 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
         if after.channel == state.last_ctx.voice_client.channel:
             if not state.last_ctx.is_playing():
                 state.last_ctx.play_next()
-                logger.debug("resuming playback")
+                _logger.debug("resuming playback")
 
     def status(self, ctx: cmd.Context) -> Iterable[str]:
         state = self.guild_states[ctx.guild.id]
@@ -253,10 +253,10 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
         )
 
     async def _queue_audio(self, ctx: MusicContext, infos: List[dict]):
-        logger.debug("queueing %s", "playlist" if len(infos) > 1 else "song")
+        _logger.debug("queueing %s", "playlist" if len(infos) > 1 else "song")
 
         if ctx.is_shuffling and not ctx.is_playing() and len(infos) > 1:
-            logger.debug("randomizing first song")
+            _logger.debug("randomizing first song")
             idx = random.randrange(len(infos))
             if idx != 0:
                 infos[0], infos[idx] = infos[idx], infos[0]
@@ -267,12 +267,12 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
                     description=f"Skipping {info.get('url')} as it is not a video."
                 )
                 atask(ctx.ctx.reply(embed=embed))
-                logger.warning("Skipping %s as it is a %s", info.get("url"), info["_type"])
+                _logger.warning("Skipping %s as it is a %s", info.get("url"), info["_type"])
                 continue
             key = extract_key(info)
             song = self.song_registry.get(key)
             if song is None:
-                logger.debug("downloading '%s'", key)
+                _logger.debug("downloading '%s'", key)
                 song_info = await self.bot.loop.run_in_executor(
                     None, lambda: self.ytdl.process_ie_result(info)
                 )
@@ -339,7 +339,7 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
         mctx.song_queue.clear()
         if ctx.voice_client is not None:
             ctx.voice_client.stop()
-            logger.debug("Disconnecting from %s.", self.ctx.guild.name)
+            _logger.debug("Disconnecting from %s.", self.ctx.guild.name)
             atask(ctx.voice_client.disconnect())
 
     @cmd.command()

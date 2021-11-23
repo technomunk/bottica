@@ -8,8 +8,7 @@ from typing import Deque, Dict, Generator, Iterable, Optional, Set, Tuple, cast
 
 FILE_ENCODING = "utf8"
 
-logger = logging.getLogger(__name__)
-
+_logger = logging.getLogger(__name__)
 
 SongKey = Tuple[str, str]
 
@@ -137,7 +136,7 @@ class _SongKeyCollection:
             if key in self._registry:
                 yield key
             else:
-                logger.warning("%s not found in song registry!", key)
+                _logger.warning("%s not found in song registry!", key)
 
 
 class SongQueue(_SongKeyCollection):

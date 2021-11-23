@@ -101,10 +101,12 @@ def clean(verbose: bool):
 @cli.command()
 @click.option("-v", "--verbose", is_flag=True, help="Print normalized entries.")
 @click.option("--keep-file", is_flag=True, help="Keep existing files on disk.")
-def normalize(verbose: bool, keep_file: bool):
+@click.option("-f", "--force", is_flag=True, help="Forcefully override all files (opus included).")
+def normalize(verbose: bool, keep_file: bool, force: bool):
     """Loudness-normalize all songs in the audio folder."""
     normalization_config = FFmpegNormalize(
         target_level=-18,
+        sample_rate=96000,
         print_stats=verbose,
         debug=verbose,
         audio_codec="libopus",
@@ -122,7 +124,7 @@ def normalize(verbose: bool, keep_file: bool):
             for line in old_song_file:
                 info = SongInfo.from_line(line)
                 try:
-                    if info.ext != normalization_config.output_format:
+                    if info.ext != normalization_config.output_format or force:
                         normalize_song(info, normalization_config, keep_file)
                 except Exception as e:
                     print(e)

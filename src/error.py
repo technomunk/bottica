@@ -12,7 +12,7 @@ from report_err import ReportableError
 from response import REACTIONS
 from util import convertee_names
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 event_loop = asyncio.get_event_loop()
 
 
@@ -20,11 +20,11 @@ async def safe_coro(coroutine: Coroutine, ctx: Optional[cmd.Context] = None):
     try:
         await coroutine
     except CancelledError:
-        logger.warning("task was cancelled")
+        _logger.warning("task was cancelled")
     except cmd.CommandError as error:
         if ctx is not None:
             handle_command_error(ctx, error)
-        logger.exception(error, stacklevel=2)
+        _logger.exception(error, stacklevel=2)
     except Exception as e:
         if ctx is not None:
             # deliberately skip providing ctx to avoid infinite error-handling
@@ -35,7 +35,7 @@ async def safe_coro(coroutine: Coroutine, ctx: Optional[cmd.Context] = None):
                 description="Something went wrong executing the command.",
             )
             atask(ctx.message.reply(embed=embed))
-        logger.exception(e, stacklevel=2)
+        _logger.exception(e, stacklevel=2)
 
 
 def atask(coroutine: Coroutine, ctx: Optional[cmd.Context] = None):
@@ -58,10 +58,10 @@ async def handle_command_error(ctx: cmd.Context, error: cmd.CommandError):
     elif isinstance(error, cmd.CommandNotFound):
         atask(ctx.reply(error))
     elif isinstance(error, ReportableError):
-        logger.warning(error)
+        _logger.warning(error)
         atask(ctx.reply(error))
     else:
-        logger.exception(error)
+        _logger.exception(error)
         embed = Embed(
             title=":warning: Internal Error :warning:",
             description="Something went wrong executing the command.",

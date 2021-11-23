@@ -28,21 +28,21 @@ bot = DiscordBot(
     intents=intents,
     allowed_mentions=AllowedMentions(users=True),
 )
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
 @bot.event
 async def on_ready():
-    logger.debug("logged in as %s (user id: %d)", bot.user.name, bot.user.id)
-    logger.debug("guilds:")
+    _logger.debug("logged in as %s (user id: %d)", bot.user.name, bot.user.id)
+    _logger.debug("guilds:")
     for guild in bot.guilds:
-        logger.debug("%s (id: %d)", guild.name, guild.id)
-    logger.info("%s is ready", bot.user.name)
+        _logger.debug("%s (id: %d)", guild.name, guild.id)
+    _logger.info("%s is ready", bot.user.name)
 
 
 @bot.before_invoke
 async def pre_invoke(ctx: commands.Context):
-    logger.info('calling "%s" in "%s"', ctx.message.content, ctx.guild.name)
+    _logger.info('calling "%s" in "%s"', ctx.message.content, ctx.guild.name)
     atask(ctx.message.add_reaction(REACTIONS["command_seen"]))
     atask(ctx.trigger_typing())
 
@@ -131,8 +131,8 @@ def run_bot():
     try:
         config = toml.load("config.toml")
     except toml.TomlDecodeError as e:
-        logger.error('Failed to parse "config.toml".')
-        logger.exception(e, stack_info=False)
+        _logger.error('Failed to parse "config.toml".')
+        _logger.exception(e, stack_info=False)
 
     if "token" not in config and not args.token:
         print("Please provide an API token to use!")
@@ -141,7 +141,7 @@ def run_bot():
 
     # set up logging
     log_level = args.log or config.get("log") or logging.INFO
-    logger.debug("set logging level to %s", log_level)
+    _logger.debug("set logging level to %s", log_level)
     logging.basicConfig(
         format="%(asctime)s:%(levelname)s:%(name)s:%(funcName)s: %(message)s",
         level=log_level,
