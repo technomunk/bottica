@@ -12,7 +12,6 @@ _logger = logging.getLogger(__name__)
 _default_config = FFmpegNormalize(
     target_level=-18,
     audio_codec="libopus",
-    sample_rate=96000,
     video_disable=True,
     subtitle_disable=True,
     metadata_disable=True,

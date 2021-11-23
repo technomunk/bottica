@@ -106,7 +106,6 @@ def normalize(verbose: bool, keep_file: bool, force: bool):
     """Loudness-normalize all songs in the audio folder."""
     normalization_config = FFmpegNormalize(
         target_level=-18,
-        sample_rate=96000,
         print_stats=verbose,
         debug=verbose,
         audio_codec="libopus",
