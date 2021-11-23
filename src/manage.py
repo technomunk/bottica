@@ -6,7 +6,7 @@ from os.path import isfile, splitext
 from typing import Callable, List, Set, Tuple, cast
 
 import click
-from ffmpeg_normalize import FFmpegNormalize, MediaFile
+from ffmpeg_normalize import FFmpegNormalize
 
 from music.file import AUDIO_FOLDER, GUILD_SET_FOLDER, SONG_REGISTRY_FILENAME
 from music.normalize import normalize_song
