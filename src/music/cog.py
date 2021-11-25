@@ -58,7 +58,6 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
         self.bot.status_reporters.append(lambda ctx: self.status(ctx))
 
     def get_music_context(self, ctx: cmd.Context) -> MusicContext:
-        _logger.debug("id=%d", ctx.guild.id)
         if ctx.guild.id not in self.contexts:
             mctx = MusicContext(ctx.guild, ctx.channel, ctx.voice_client, self.song_registry)
             mctx.persist_to_file()
@@ -74,6 +73,7 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
                 self.contexts[guild.id] = mctx
 
                 if mctx.voice_client is not None:
+                    _logger.debug("resuming playback")
                     mctx.play_next()
 
         _logger.info(
@@ -97,7 +97,7 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
             return
         if after.channel == mctx.voice_client.channel:
             if not mctx.is_playing():
-                _logger.debug("resuming playback")
+                _logger.debug("resuming playback on member connect")
                 mctx.play_next()
 
     def status(self, ctx: cmd.Context) -> Iterable[str]:

@@ -167,7 +167,7 @@ class MusicContext:
         channel_members = self._voice_client.channel.members
         if all(member.bot for member in channel_members):
             # skip playback. It will be attempted again in Cog.on_voice_state_update()
-            _logger.debug("Playback skipped due to no active members")
+            _logger.debug("playback skipped due to no active members")
             if self.song_message is not None:
                 atask(self.song_message.update(embed=discord.Embed(description="...")))
             return
