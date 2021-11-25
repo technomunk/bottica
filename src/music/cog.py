@@ -2,7 +2,6 @@
 
 import logging
 import random
-from os import makedirs
 from typing import Dict, Iterable, List, Optional, Tuple
 
 import discord
@@ -12,11 +11,11 @@ from youtube_dl import YoutubeDL
 import response
 from error import atask
 from music import check
-from util import format_duration, onoff
+from util import format_duration
 
-from .context import MusicContext, MusicGuildState
+from .context import MusicContext, MusicGuildState, SongSelectMode
 from .error import BotLacksVoicePermissions
-from .file import AUDIO_FOLDER, DATA_FOLDER, GUILD_SET_FOLDER, SONG_REGISTRY_FILENAME
+from .file import AUDIO_FOLDER, DATA_FOLDER, SONG_REGISTRY_FILENAME
 from .normalize import normalize_song
 from .song import SongInfo, SongRegistry
 
@@ -55,8 +54,6 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
         self.song_registry = SongRegistry(SONG_REGISTRY_FILENAME)
         self.guild_states: Dict[int, MusicGuildState] = {}
 
-        makedirs(AUDIO_FOLDER, exist_ok=True)
-        makedirs(GUILD_SET_FOLDER, exist_ok=True)
         self.bot.status_reporters.append(lambda ctx: self.status(ctx))
 
     def _wrap_context(self, ctx: cmd.Context) -> MusicContext:
@@ -94,8 +91,8 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
     def status(self, ctx: cmd.Context) -> Iterable[str]:
         state = self.guild_states[ctx.guild.id]
         return (
-            f"{len(state.set)} songs in guild set",
-            f"Shuffling is `{onoff(state.is_shuffling)}`",
+            f"{len(state.song_set)} songs in guild set",
+            f"Select mode is `{state.select_mode.value}`",
         )
 
     async def _queue_audio(self, ctx: MusicContext, infos: List[dict]):
@@ -126,8 +123,10 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
                 # normalize song without blocking
                 await self.bot.loop.run_in_executor(None, lambda: normalize_song(song))
                 self.song_registry.put(song)
-            ctx.song_set.add(song)
-            ctx.song_queue.push(song)
+
+            if ctx.song_set.add(song) or not ctx.is_radio:
+                ctx.song_queue.push(song)
+
             if not ctx.is_playing():
                 ctx.play_next()
 
@@ -165,6 +164,16 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
             mctx.play_next()
 
     @cmd.command()
+    @cmd.check(check.bot_has_voice_permission_in_author_channel)
+    async def radio(self, ctx: cmd.Context):
+        """Start radio play in author's voice channel."""
+        mctx = self._wrap_context(ctx)
+        await mctx.join_or_throw(ctx.author.voice.channel)
+        mctx.select_mode = SongSelectMode.RADIO
+        if not mctx.is_playing():
+            mctx.play_next()
+
+    @cmd.command()
     @cmd.check(check.bot_is_voice_connected)
     async def pause(self, ctx: cmd.Context):
         """Pause current playback."""
@@ -178,22 +187,32 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
         if ctx.voice_client.is_paused():
             ctx.voice_client.resume()
 
+    @cmd.command()
+    async def stop(self, ctx: cmd.Context):
+        """Stop playback immediately."""
+        if ctx.voice_client is not None:
+            ctx.voice_client.stop()
+            logger.debug("Disconnecting from %s.", self.ctx.guild.name)
+            atask(ctx.voice_client.disconnect())
+
     @cmd.command(aliases=("pq",))
     async def purge(self, ctx: cmd.Context):
-        """Drop any songs queued for playback."""
+        """Drop any of the currently queued songs."""
         mctx = self._wrap_context(ctx)
         mctx.song_queue.clear()
+        # Radio mode gets broken by cleared queue, switch to queue instead
+        mctx.select_mode = SongSelectMode.QUEUE
         if ctx.voice_client is not None:
             ctx.voice_client.stop()
             _logger.debug("Disconnecting from %s.", self.ctx.guild.name)
             atask(ctx.voice_client.disconnect())
 
     @cmd.command()
-    async def song(self, ctx: cmd.Context, active: bool = False):
+    async def song(self, ctx: cmd.Context, sticky: bool = False):
         """Display information about the current song."""
         mctx = self._wrap_context(ctx)
         if mctx.is_playing() and mctx.song_queue.head is not None:
-            atask(mctx.display_current_song_info(active), ctx)
+            atask(mctx.display_current_song_info(sticky), ctx)
         else:
             atask(ctx.reply("Not playing anything at the moment."))
 
@@ -201,27 +220,38 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
     async def queue(self, ctx: cmd.Context):
         """Display information about the current song queue."""
         mctx = self._wrap_context(ctx)
-        if mctx.is_playing() and mctx.song_queue:
+        if mctx.is_radio:
+            desc = f"My radio set consists of {len(mctx.song_set)} songs."
+            embed = discord.Embed(description=desc)
+            atask(ctx.reply(embed=embed))
+        elif mctx.song_queue:
             durstr = format_duration(mctx.song_queue.duration)
-            desc = f"Queued {len(mctx.song_queue)} songs ({durstr})."
+            desc = f"I have {len(mctx.song_queue)} songs queued at the moment. ({durstr})"
             embed = discord.Embed(description=desc)
             atask(ctx.reply(embed=embed))
         else:
             atask(ctx.reply("Nothing queued at the moment."))
 
-    @cmd.command()
-    async def shuffle(self, ctx: cmd.context, state: Optional[bool] = None):
+    @cmd.command(aliases=("mm", "mode"))
+    async def music_mode(self, ctx: cmd.Context, mode: Optional[str] = None):
         """
-        Manipulate whether the queued songs should be shuffled.
-        Sets the shuffling of the queue to provided value or prints whether the queue
-        is currently being shuffled. While the queue is shuffled the songs will come
-        in random order.
+        Manipulate music selection mode. Supports 3 modes:
+        - queue : play all queued songs in the order they were queued in.
+        - shuffle : play all queued songs in random order.
+        - radio : repeatedly play all queued songs in semi-random order, avoiding instant repeats.
+
+        If a mode is not provided I'll just say the current mode :)
         """
         mctx = self._wrap_context(ctx)
-        if state is None:
-            atask(ctx.reply(f"Shuffling is `{onoff(mctx.is_shuffling)}`"))
+        if mode:
+            try:
+                mctx.select_mode = SongSelectMode(mode)
+            except ValueError:
+                raise cmd.BadArgument(
+                    f"Sorry, I can only be in one of {[e.value for e in SongSelectMode]} modes!"
+                )
         else:
-            mctx.is_shuffling = state
+            atask(ctx.reply(f"I'm in {mctx.select_mode.value} mode. 😊"))
 
     @cmd.command(aliases=("n",))
     async def next(self, ctx: cmd.Context):

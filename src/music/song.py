@@ -201,6 +201,12 @@ class SongQueue(_SongKeyCollection):
         self._tail.clear()
         self.duration = 0
 
+    def __iter__(self) -> Generator[SongInfo, None, None]:
+        if self._head is not None:
+            yield self._deref(self._head)
+        for key in self._tail:
+            yield self._deref(key)
+
 
 class SongSet(_SongKeyCollection):
     """
@@ -219,16 +225,20 @@ class SongSet(_SongKeyCollection):
             with open(filename, "w", encoding=FILE_ENCODING) as file:
                 assert file
 
-    def add(self, song: SongInfo) -> None:
+    def add(self, song: SongInfo) -> bool:
         if song.key in self._data:
-            return
+            return False
         self._data.add(song.key)
         with open(self.filename, "a", encoding=FILE_ENCODING) as file:
             file.write(keystr(song.key))
             file.write("\n")
+        return True
+
+    def __contains__(self, song: SongInfo) -> bool:
+        return song.key in self._data
 
     def __len__(self) -> int:
         return len(self._data)
 
     def __iter__(self) -> Generator[SongInfo, None, None]:
-        return (self._registry[key] for key in self._data)
+        return (self._deref(key) for key in self._data)
