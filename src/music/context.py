@@ -112,7 +112,7 @@ class MusicContext:
             line = file.readline().strip()
             if line:
                 channel_id = int(line)
-                channel = await find_channel(self._guild, line, discord.VoiceChannel)
+                channel = await find_channel(self._guild, channel_id, discord.VoiceChannel)
                 if channel is not None:
                     self._voice_client = await channel.connect()
 
