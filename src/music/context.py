@@ -99,7 +99,7 @@ class MusicContext:
             self._min_repeat_interval = int(file.readline().strip())
 
             channel_id = int(file.readline().strip())
-            channel = find_channel(self._guild, channel_id, discord.TextChannel)
+            channel = await find_channel(self._guild, channel_id, discord.TextChannel)
             assert channel is not None
             self._text_channel = channel
 
