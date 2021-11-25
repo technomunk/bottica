@@ -2,6 +2,7 @@
 
 import logging
 import random
+from os import path
 from typing import Dict, Iterable, List, Optional, Tuple
 
 import discord
@@ -13,9 +14,9 @@ from error import atask
 from music import check
 from util import format_duration
 
-from .context import MusicContext, MusicGuildState, SongSelectMode
+from .context import MusicContext, SongSelectMode
 from .error import BotLacksVoicePermissions
-from .file import AUDIO_FOLDER, DATA_FOLDER, SONG_REGISTRY_FILENAME
+from .file import AUDIO_FOLDER, DATA_FOLDER, GUILD_CONTEXT_FOLDER, SONG_REGISTRY_FILENAME
 from .normalize import normalize_song
 from .song import SongInfo, SongRegistry
 
@@ -52,18 +53,24 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
         }
         self.ytdl = YoutubeDL(ytdl_options)
         self.song_registry = SongRegistry(SONG_REGISTRY_FILENAME)
-        self.guild_states: Dict[int, MusicGuildState] = {}
+        self.contexts: Dict[int, MusicContext] = {}
 
         self.bot.status_reporters.append(lambda ctx: self.status(ctx))
 
-    def _wrap_context(self, ctx: cmd.Context) -> MusicContext:
-        return MusicContext(ctx, self.song_registry, self.guild_states)
+    def get_music_context(self, ctx: cmd.Context) -> MusicContext:
+        if ctx.guild.id not in self.contexts:
+            mctx = MusicContext(ctx.guild, ctx.voice_client, self.song_registry)
+            mctx.persist_to_file()
+            self.contexts[ctx.guild.id] = mctx
+        return self.contexts[ctx.guild.id]
 
     @cmd.Cog.listener()
     async def on_ready(self):
-        self.guild_states = {
-            guild.id: MusicGuildState(self.song_registry, guild.id) for guild in self.bot.guilds
-        }
+        for guild in self.bot.guilds:
+            if path.exists(f"{GUILD_CONTEXT_FOLDER}{guild.id}.txt"):
+                mctx = MusicContext(guild, None, self.song_registry)
+                await mctx.restore_from_file()
+                self.contexts[guild.id] = mctx
         _logger.info(
             "MusicCog initialized with %d songs and %d states",
             len(self.song_registry),
@@ -95,10 +102,11 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
             f"Select mode is `{state.select_mode.value}`",
         )
 
-    async def _queue_audio(self, ctx: MusicContext, infos: List[dict]):
+    async def _queue_audio(self, ctx: cmd.Context, infos: List[dict]):
         _logger.debug("queueing %s", "playlist" if len(infos) > 1 else "song")
+        mctx = self.get_music_context(ctx)
 
-        if ctx.is_shuffling and not ctx.is_playing() and len(infos) > 1:
+        if mctx.is_shuffling and not mctx.is_playing() and len(infos) > 1:
             _logger.debug("randomizing first song")
             idx = random.randrange(len(infos))
             if idx != 0:
@@ -109,7 +117,7 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
                 embed = discord.Embed(
                     description=f"Skipping {info.get('url')} as it is not a video."
                 )
-                atask(ctx.ctx.reply(embed=embed))
+                atask(ctx.reply(embed=embed))
                 _logger.warning("Skipping %s as it is a %s", info.get("url"), info["_type"])
                 continue
             key = extract_key(info)
@@ -124,11 +132,11 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
                 await self.bot.loop.run_in_executor(None, lambda: normalize_song(song))
                 self.song_registry.put(song)
 
-            if ctx.song_set.add(song) or not ctx.is_radio:
-                ctx.song_queue.push(song)
+            if mctx.song_set.add(song) or not mctx.is_radio:
+                mctx.song_queue.push(song)
 
-            if not ctx.is_playing():
-                ctx.play_next()
+            if not mctx.is_playing():
+                mctx.play_next()
 
     @cmd.command(aliases=("p",))
     @cmd.check(check.bot_has_voice_permission_in_author_channel)
@@ -137,7 +145,7 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
         Play songs found at provided query.
         I will join issuer's voice channel if possible.
         """
-        mctx = self._wrap_context(ctx)
+        mctx = self.get_music_context(ctx)
         await mctx.join_or_throw(ctx.author.voice.channel)
         # download should be run asynchronously as to avoid blocking the bot
         req = await self.bot.loop.run_in_executor(
@@ -146,9 +154,9 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
         )
         req_type = req.get("_type", "video")
         if req_type == "playlist":
-            atask(self._queue_audio(mctx, [entry for entry in req["entries"]]), ctx)
+            atask(self._queue_audio(ctx, [entry for entry in req["entries"]]), ctx)
         else:
-            atask(self._queue_audio(mctx, [req]), ctx)
+            atask(self._queue_audio(ctx, [req]), ctx)
 
     @cmd.command(aliases=("pa",))
     @cmd.check(check.bot_has_voice_permission_in_author_channel)
@@ -157,7 +165,7 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
         Play all songs that were ever queued on this server.
         I will join issuer's voice channel if possible.
         """
-        mctx = self._wrap_context(ctx)
+        mctx = self.get_music_context(ctx)
         await mctx.join_or_throw(ctx.author.voice.channel)
         if mctx.is_radio:
             mctx.select_mode = SongSelectMode.SHUFFLE_QUEUE
@@ -169,7 +177,7 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
     @cmd.check(check.bot_has_voice_permission_in_author_channel)
     async def radio(self, ctx: cmd.Context):
         """Start radio play in author's voice channel."""
-        mctx = self._wrap_context(ctx)
+        mctx = self.get_music_context(ctx)
         await mctx.join_or_throw(ctx.author.voice.channel)
         mctx.select_mode = SongSelectMode.RADIO
         if not mctx.is_playing():
@@ -192,13 +200,13 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
     @cmd.command()
     async def stop(self, ctx: cmd.Context):
         """Stop playback immediately."""
-        mctx = self._wrap_context(ctx)
+        mctx = self.get_music_context(ctx)
         mctx.disconnect()
 
     @cmd.command(aliases=("pq",))
     async def purge(self, ctx: cmd.Context):
         """Drop any of the currently queued songs."""
-        mctx = self._wrap_context(ctx)
+        mctx = self.get_music_context(ctx)
         mctx.song_queue.clear()
         # Radio mode gets broken by cleared queue, switch to queue instead
         mctx.select_mode = SongSelectMode.QUEUE
@@ -207,16 +215,16 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
     @cmd.command()
     async def song(self, ctx: cmd.Context, sticky: bool = False):
         """Display information about the current song."""
-        mctx = self._wrap_context(ctx)
+        mctx = self.get_music_context(ctx)
         if mctx.is_playing() and mctx.song_queue.head is not None:
-            atask(mctx.display_current_song_info(sticky), ctx)
+            atask(mctx.display_current_song_info(sticky, ctx.channel), ctx)
         else:
             atask(ctx.reply("Not playing anything at the moment."))
 
     @cmd.command(aliases=("q",))
     async def queue(self, ctx: cmd.Context):
         """Display information about the current song queue."""
-        mctx = self._wrap_context(ctx)
+        mctx = self.get_music_context(ctx)
         if mctx.is_radio:
             desc = f"My radio set consists of {len(mctx.song_set)} songs."
             embed = discord.Embed(description=desc)
@@ -239,7 +247,7 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
 
         If a mode is not provided I'll just say the current mode :)
         """
-        mctx = self._wrap_context(ctx)
+        mctx = self.get_music_context(ctx)
         if mode:
             try:
                 mctx.select_mode = SongSelectMode(mode)
@@ -253,7 +261,7 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
     @cmd.command(aliases=("n",))
     async def next(self, ctx: cmd.Context):
         """Skip the current song."""
-        mctx = self._wrap_context(ctx)
+        mctx = self.get_music_context(ctx)
         if not mctx.is_playing():
             atask(ctx.reply("I'm not playing anything." + random.choice(response.FAILS)))
         mctx.play_next()
@@ -269,7 +277,5 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
         if not permissions.connect or not permissions.speak:
             raise BotLacksVoicePermissions(channel)
 
-        if ctx.voice_client is None:
-            atask(channel.connect())
-        else:
-            atask(ctx.voice_client.move_to(channel))
+        mctx = self.get_music_context(ctx)
+        mctx.join_or_throw(channel)

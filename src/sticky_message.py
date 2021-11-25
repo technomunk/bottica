@@ -22,16 +22,6 @@ class StickyMessage:
         message = await channel.send(content, **kwargs)
         return cls(message)
 
-    @classmethod
-    async def from_ids(cls, ids: Tuple[int, int], guild: discord.Guild) -> Optional[StickyMessage]:
-        channels = await guild.fetch_channels()
-        for channel in channels:
-            if channel.id == ids[0]:
-                message = await channel.fetch_message(ids[1])
-                return cls(message)
-
-        return None
-
     async def update(self, content=None, **kwargs):
         channel = self._message.channel
         history = await channel.history(limit=1).flatten()
@@ -45,5 +35,5 @@ class StickyMessage:
         atask(self._message.delete())
 
     @property
-    def ids(self) -> Tuple[int, int]:
-        return self._message.channel.id, self._message.id
+    def id(self) -> int:
+        return self._message.id

@@ -63,7 +63,7 @@ async def find_channel(
 ) -> Optional[T]:
     channels = await guild.fetch_channels()
     for channel in channels:
-        if channel.id == channel_id and isinstance(expected_type, channel):
+        if channel.id == channel_id and isinstance(channel, expected_type):
             return channel
 
     return None

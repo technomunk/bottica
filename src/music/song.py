@@ -18,7 +18,7 @@ def keystr(key: SongKey) -> str:
 
 
 class SongInfo:
-    __slots__ = ("domain", "id", "ext", "duration", "title")
+    __slots__ = "domain", "id", "ext", "duration", "title"
 
     def __init__(
         self,
@@ -144,11 +144,13 @@ class SongQueue(_SongKeyCollection):
     Sequence of played songs.
     """
 
+    __slots__ = "_registry", "_head", "_tail", "_duration"
+
     def __init__(self, registry: SongRegistry) -> None:
         super().__init__(registry)
         self._head: Optional[SongKey] = None
         self._tail: Deque[SongKey] = deque()
-        self.duration: int = 0
+        self._duration: int = 0
 
     def __len__(self) -> int:
         return len(self._tail) + int(self._head is not None)
@@ -164,10 +166,10 @@ class SongQueue(_SongKeyCollection):
         """
         if self._tail:
             if self._head is not None:
-                self.duration -= self._deref(self._head).duration
+                self._duration -= self._deref(self._head).duration
             self._head = self._tail.popleft()
         else:
-            self.duration = 0
+            self._duration = 0
             self._head = None
         return self.head
 
@@ -178,28 +180,28 @@ class SongQueue(_SongKeyCollection):
         """
         if self._tail:
             if self._head is not None:
-                self.duration -= self._deref(self._head).duration
+                self._duration -= self._deref(self._head).duration
             idx = randrange(len(self._tail))
             self._head = self._tail[idx]
             del self._tail[idx]
         else:
-            self.duration = 0
+            self._duration = 0
             self._head = None
         return self.head
 
     def push(self, song: SongInfo) -> None:
-        self.duration += song.duration
+        self._duration += song.duration
         self._tail.append(song.key)
 
     def extend(self, it: Iterable[SongInfo]) -> None:
         for song in it:
             self._tail.append(song.key)
-            self.duration += song.duration
+            self._duration += song.duration
 
     def clear(self) -> None:
         self._head = None
         self._tail.clear()
-        self.duration = 0
+        self._duration = 0
 
     def __iter__(self) -> Generator[SongInfo, None, None]:
         if self._head is not None:
@@ -207,11 +209,17 @@ class SongQueue(_SongKeyCollection):
         for key in self._tail:
             yield self._deref(key)
 
+    @property
+    def duration(self) -> int:
+        return self._duration
+
 
 class SongSet(_SongKeyCollection):
     """
     Set of all songs queued within a guild.
     """
+
+    __slots__ = "_registry", "filename", "_data"
 
     def __init__(self, registry: SongRegistry, filename: str) -> None:
         super().__init__(registry)
