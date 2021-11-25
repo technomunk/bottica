@@ -1,7 +1,6 @@
 # Music-playing Cog for the bot
 
 import logging
-import os
 import random
 from os import path
 from typing import Dict, Iterable, List, Optional, Tuple
@@ -81,8 +80,7 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
                         mctx.play_next()
 
                 except Exception as e:
-                    _logger.exception(e)
-                    os.remove(filename)
+                    _logger.exception(e, extra={"filename": filename})
 
         _logger.info(
             "MusicCog initialized with %d songs and %d states",
