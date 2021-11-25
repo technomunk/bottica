@@ -65,6 +65,10 @@ class MusicGuildState:
                 self.min_repeat_interval = int(repeat_interval)
         except (FileNotFoundError, ValueError):
             return False
+
+        if self.select_mode == SongSelectMode.RADIO:
+            self.select_queue.extend(self.song_set)
+
         return True
 
 
