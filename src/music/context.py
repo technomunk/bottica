@@ -214,6 +214,9 @@ class MusicContext:
         if value == SongSelectMode.RADIO or self.select_mode == SongSelectMode.RADIO:
             self.state.history_queue.clear()
 
+        if self.select_mode == SongSelectMode.RADIO:
+            self.song_queue.clear()
+
         if value == SongSelectMode.RADIO:
             self.song_queue.clear()
             self.song_queue.extend(self.song_set)

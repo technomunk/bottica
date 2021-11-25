@@ -159,6 +159,8 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
         """
         mctx = self._wrap_context(ctx)
         await mctx.join_or_throw(ctx.author.voice.channel)
+        if mctx.is_radio:
+            mctx.select_mode = SongSelectMode.SHUFFLE_QUEUE
         mctx.song_queue.extend(mctx.song_set)
         if not mctx.is_playing():
             mctx.play_next()
