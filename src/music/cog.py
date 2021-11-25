@@ -58,8 +58,9 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
         self.bot.status_reporters.append(lambda ctx: self.status(ctx))
 
     def get_music_context(self, ctx: cmd.Context) -> MusicContext:
+        _logger.debug("id=%d", ctx.guild.id)
         if ctx.guild.id not in self.contexts:
-            mctx = MusicContext(ctx.guild, ctx.voice_client, self.song_registry)
+            mctx = MusicContext(ctx.guild, ctx.channel, ctx.voice_client, self.song_registry)
             mctx.persist_to_file()
             self.contexts[ctx.guild.id] = mctx
         return self.contexts[ctx.guild.id]
@@ -68,13 +69,17 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
     async def on_ready(self):
         for guild in self.bot.guilds:
             if path.exists(f"{GUILD_CONTEXT_FOLDER}{guild.id}.txt"):
-                mctx = MusicContext(guild, None, self.song_registry)
+                mctx = MusicContext(guild, None, None, self.song_registry)
                 await mctx.restore_from_file()
                 self.contexts[guild.id] = mctx
+
+                if mctx.voice_client is not None:
+                    mctx.play_next()
+
         _logger.info(
             "MusicCog initialized with %d songs and %d states",
             len(self.song_registry),
-            len(self.guild_states),
+            len(self.contexts),
         )
 
     @cmd.Cog.listener()
@@ -87,19 +92,21 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
         # check that a real user connected to a channel
         if member.bot or after.channel is None:
             return
-        state = self.guild_states.get(after.channel.guild.id)
-        if state is None or state.last_ctx is None or state.last_ctx.voice_client is None:
+        mctx = self.contexts.get(after.channel.guild.id)
+        if mctx is None or mctx.voice_client is None:
             return
-        if after.channel == state.last_ctx.voice_client.channel:
-            if not state.last_ctx.is_playing():
-                state.last_ctx.play_next()
+        if after.channel == mctx.voice_client.channel:
+            if not mctx.is_playing():
                 _logger.debug("resuming playback")
+                mctx.play_next()
 
     def status(self, ctx: cmd.Context) -> Iterable[str]:
-        state = self.guild_states[ctx.guild.id]
+        mctx = self.contexts.get(ctx.guild.id)
+        if mctx is None:
+            return []
         return (
-            f"{len(state.song_set)} songs in guild set",
-            f"Select mode is `{state.select_mode.value}`",
+            f"{len(mctx.song_set)} songs in guild set",
+            f"Music mode is `{mctx.select_mode.value}`",
         )
 
     async def _queue_audio(self, ctx: cmd.Context, infos: List[dict]):

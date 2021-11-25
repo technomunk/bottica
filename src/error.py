@@ -61,7 +61,6 @@ async def handle_command_error(ctx: cmd.Context, error: cmd.CommandError):
         _logger.warning(error)
         atask(ctx.reply(error))
     else:
-        _logger.exception(error)
         embed = Embed(
             title=":warning: Internal Error :warning:",
             description="Something went wrong executing the command.",

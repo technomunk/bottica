@@ -39,6 +39,7 @@ class MusicContext:
     def __init__(
         self,
         guild: discord.Guild,
+        text_channel: discord.TextChannel,
         voice_client: Optional[discord.VoiceClient],
         registry: SongRegistry,
     ):
@@ -51,7 +52,7 @@ class MusicContext:
         self._select_mode = SongSelectMode.QUEUE
         self._min_repeat_interval = 32  # sufficiently large number chosen on a whim
 
-        self._text_channel: discord.TextChannel = None
+        self._text_channel: discord.TextChannel = text_channel
         self._song_message: Optional[StickyMessage] = None
         self._voice_client = voice_client
 
@@ -93,9 +94,8 @@ class MusicContext:
             file.write("\n")
 
     async def restore_from_file(self):
-        # Note that all the assignments are direct and don't use self. properties
         with open(self.filename, "r") as file:
-            self._select_mode = SongSelectMode(file.readline().strip())
+            new_select_mode = SongSelectMode(file.readline().strip())
             self._min_repeat_interval = int(file.readline().strip())
 
             channel_id = int(file.readline().strip())
@@ -113,7 +113,11 @@ class MusicContext:
             if line:
                 channel = await find_channel(self._guild, int(line), discord.VoiceChannel)
                 if channel is not None:
-                    self.voice_client = await channel.connect()
+                    self._voice_client = await channel.connect()
+
+        if new_select_mode != self._select_mode:
+            self._update_select_mode(new_select_mode)
+            self._select_mode = new_select_mode
 
     def disconnect(self):
         if self._voice_client is not None:
@@ -132,7 +136,8 @@ class MusicContext:
         song = self.song_queue.head
         if song is None:
             if self.song_message is not None:
-                atask(self.song_message.delete())
+                self.song_message.delete()
+                self.song_message = None
             return
 
         embed = discord.Embed(description=f"{song.pretty_link} <> {format_duration(song.duration)}")
@@ -159,6 +164,14 @@ class MusicContext:
         if not self._voice_client.is_connected():
             raise RuntimeError("Bot is not connected to a voice channel.")
 
+        channel_members = self._voice_client.channel.members
+        if all(member.bot for member in channel_members):
+            # skip playback. It will be attempted again in Cog.on_voice_state_update()
+            _logger.debug("Playback skipped due to no active members")
+            if self.song_message is not None:
+                atask(self.song_message.update(embed=discord.Embed(description="...")))
+            return
+
         song = self.select_next()
 
         if song is None:
@@ -183,12 +196,7 @@ class MusicContext:
 
             # queue still includes the current song, so check if length is > 1
             if len(self._select_queue) > 1:
-                if any(not member.bot for member in self._voice_client.channel.members):
-                    self.play_next()
-                else:
-                    # pause playback. It will be resumed in Cog.on_voice_state_update()
-                    if self.song_message is not None:
-                        atask(self.song_message.update(embed=discord.Embed(description="...")))
+                self.play_next()
             else:
                 if self.song_message is not None:
                     self.song_message.delete()
@@ -226,15 +234,7 @@ class MusicContext:
             else:
                 return self._select_queue.pop()
 
-    @property
-    def select_mode(self) -> SongSelectMode:
-        return self._select_mode
-
-    @select_mode.setter
-    def select_mode(self, value: SongSelectMode):
-        if self._select_mode == value:
-            return
-
+    def _update_select_mode(self, value: SongSelectMode):
         if value == SongSelectMode.RADIO or self._select_mode == SongSelectMode.RADIO:
             self._history_queue.clear()
 
@@ -245,6 +245,15 @@ class MusicContext:
             self._select_queue.clear()
             self._select_queue.extend(self._song_set)
 
+    @property
+    def select_mode(self) -> SongSelectMode:
+        return self._select_mode
+
+    @select_mode.setter
+    def select_mode(self, value: SongSelectMode):
+        if self._select_mode == value:
+            return
+        self._update_select_mode(value)
         self._select_mode = value
         self.persist_to_file()
 
@@ -267,17 +276,21 @@ class MusicContext:
 
     @property
     def is_shuffling(self) -> bool:
-        return self.select_mode == SongSelectMode.SHUFFLE_QUEUE
+        return self._select_mode == SongSelectMode.SHUFFLE_QUEUE
 
     @property
     def is_radio(self) -> bool:
-        return self.select_mode == SongSelectMode.RADIO
+        return self._select_mode == SongSelectMode.RADIO
 
     @property
     def song_message(self) -> Optional[StickyMessage]:
-        return self.song_message
+        return self._song_message
 
     @song_message.setter
     def song_message(self, value: Optional[StickyMessage]):
-        self.song_message = value
+        self._song_message = value
         self.persist_to_file()
+
+    @property
+    def voice_client(self) -> Optional[discord.VoiceClient]:
+        return self._voice_client
