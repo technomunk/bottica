@@ -1,6 +1,7 @@
 # Music-playing Cog for the bot
 
 import logging
+import os
 import random
 from os import path
 from typing import Dict, Iterable, List, Optional, Tuple
@@ -67,14 +68,21 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
     @cmd.Cog.listener()
     async def on_ready(self):
         for guild in self.bot.guilds:
-            if path.exists(f"{GUILD_CONTEXT_FOLDER}{guild.id}.txt"):
-                mctx = MusicContext(guild, None, None, self.song_registry)
-                await mctx.restore_from_file()
-                self.contexts[guild.id] = mctx
+            filename = f"{GUILD_CONTEXT_FOLDER}{guild.id}.txt"
+            if path.exists(filename):
+                try:
+                    mctx = MusicContext(guild, None, None, self.song_registry)
+                    await mctx.restore_from_file()
 
-                if mctx.voice_client is not None:
-                    _logger.debug("resuming playback")
-                    mctx.play_next()
+                    self.contexts[guild.id] = mctx
+
+                    if mctx.voice_client is not None:
+                        _logger.debug("resuming playback")
+                        mctx.play_next()
+
+                except Exception as e:
+                    _logger.exception(e)
+                    os.remove(filename)
 
         _logger.info(
             "MusicCog initialized with %d songs and %d states",
