@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Optional, Tuple
+
 import discord
 
 from error import atask
@@ -16,9 +18,7 @@ class StickyMessage:
 
     @classmethod
     async def send(cls, channel: discord.abc.Messageable, content=None, **kwargs) -> StickyMessage:
-        """
-        Send a new sticky message.
-        """
+        """Send a new sticky message."""
         message = await channel.send(content, **kwargs)
         return cls(message)
 
@@ -33,3 +33,7 @@ class StickyMessage:
 
     def delete(self):
         atask(self._message.delete())
+
+    @property
+    def id(self) -> int:
+        return self._message.id
