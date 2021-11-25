@@ -1,14 +1,13 @@
 import enum
 import logging
-from os import path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple, cast
 
 import discord
 import discord.ext.commands as cmd
 
 from error import atask
 from sticky_message import StickyMessage
-from util import format_duration
+from util import find_channel, format_duration
 
 from .error import AuthorNotInPlayingChannel
 from .file import AUDIO_FOLDER, GUILD_SET_FOLDER, GUILD_STATES_FOLDER
@@ -26,9 +25,9 @@ class SongSelectMode(enum.Enum):
 class MusicGuildState:
     """Musical state relevant to a single guild."""
 
-    def __init__(self, registry: SongRegistry, guild_id: int) -> None:
-        self.guild_id = guild_id
-        self.song_set = SongSet(registry, f"{GUILD_SET_FOLDER}{guild_id}.txt")
+    def __init__(self, registry: SongRegistry, guild: discord.Guild) -> None:
+        self.guild_id = guild.id
+        self.song_set = SongSet(registry, f"{GUILD_SET_FOLDER}{self.guild_id}.txt")
         self.select_queue = SongQueue(registry)
         self.history_queue = SongQueue(registry)
 
@@ -38,38 +37,9 @@ class MusicGuildState:
         self.song_message: Optional[StickyMessage] = None
         self.last_ctx: Optional[MusicContext] = None
 
-        # Loading from file may override defaults
-        if not self.load_from_file():
-            self.save_to_file()
-
     @property
     def filename(self) -> str:
         return f"{GUILD_STATES_FOLDER}{self.guild_id}.txt"
-
-    def save_to_file(self):
-        with open(self.filename, "w") as file:
-            file.write(self.select_mode.value)
-            file.write(" ")
-            file.write(str(self.min_repeat_interval))
-            file.write("\n")
-
-    def load_from_file(self) -> bool:
-        if not path.exists(self.filename):
-            return False
-
-        try:
-            with open(self.filename, "r") as file:
-                line = file.readline()
-                select_mode, repeat_interval = line.split(maxsplit=1)
-                self.select_mode = SongSelectMode(select_mode)
-                self.min_repeat_interval = int(repeat_interval)
-        except (FileNotFoundError, ValueError):
-            return False
-
-        if self.select_mode == SongSelectMode.RADIO:
-            self.select_queue.extend(self.song_set)
-
-        return True
 
 
 class MusicContext:
@@ -102,6 +72,13 @@ class MusicContext:
             await channel.connect()
         else:
             await self.voice_client.move_to(channel)  # type: ignore
+        self.persist_to_file()
+
+    def disconnect(self):
+        if self.voice_client is not None:
+            self.voice_client.stop()
+            atask(self.voice_client.disconnect())
+        self.persist_to_file()
 
     async def display_current_song_info(self, sticky: bool) -> None:
         song = self.song_queue.head
@@ -122,6 +99,47 @@ class MusicContext:
                 self.song_message.delete()
                 self.song_message = None
             atask(self.ctx.send(embed=embed))
+
+    def persist_to_file(self, filename: str = ""):
+        filename = filename or self.state.filename
+        with open(filename, "w") as file:
+            file.write(self.select_mode.value)
+            file.write("\n")
+
+            file.write(str(self.min_repeat_interval))
+            file.write("\n")
+
+            if self.song_message is not None:
+                file.write(f"{self.song_message.ids[0]} {self.song_message.ids[1]}")
+            file.write("\n")
+
+            if self.voice_client is not None and self.voice_client.channel is not None:
+                file.write(str(self.voice_client.channel.id))
+            file.write("\n")
+
+    async def restore_from_file(self, guild: discord.Guild, filename: str = "") -> bool:
+        filename = filename or self.state.filename
+
+        try:
+            with open(filename, "r") as file:
+                self.select_mode = SongSelectMode(file.readline())
+                self.min_repeat_interval = int(file.readline())
+                line = file.readline()
+                if line:
+                    ids = cast(Tuple[int, int], tuple(int(id_) for id_ in line.split()))
+                    self.song_message = await StickyMessage.from_ids(ids, guild)
+
+                line = file.readline()
+                if line:
+                    channel = await find_channel(guild, int(line), discord.VoiceChannel)
+                    if channel:
+                        await channel.connect()
+
+        except Exception as e:
+            _logger.exception(e)
+            return False
+
+        return True
 
     def play_next(self) -> None:
         """
@@ -222,7 +240,7 @@ class MusicContext:
             self.song_queue.extend(self.song_set)
 
         self.state.select_mode = value
-        self.state.save_to_file()
+        self.persist_to_file()
 
     @property
     def min_repeat_interval(self) -> int:
@@ -231,7 +249,7 @@ class MusicContext:
     @min_repeat_interval.setter
     def min_repeat_interval(self, value: int):
         self.state.min_repeat_interval = value
-        self.state.save_to_file()
+        self.persist_to_file()
 
     @property
     def song_queue(self) -> SongQueue:
@@ -260,3 +278,4 @@ class MusicContext:
     @song_message.setter
     def song_message(self, value: Optional[StickyMessage]):
         self.state.song_message = value
+        self.persist_to_file()

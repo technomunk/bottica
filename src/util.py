@@ -1,8 +1,8 @@
 from inspect import signature
-from typing import Any, Tuple
+from typing import Any, Optional, Tuple, Type, TypeVar
 
+import discord
 from discord.ext.commands import Converter
-
 
 SIZE_NAMES = ["B", "KiB", "MiB", "GiB", "TiB", "PiB"]
 SIZE_INCREMENT = 1 << 10
@@ -51,3 +51,19 @@ def convertee_names(converters: Tuple[Converter]) -> str:
         result += " or "
     result += converted_type_name(converters[-1])
     return result
+
+
+T = TypeVar("T", discord.TextChannel, discord.VoiceChannel, discord.abc.GuildChannel)
+
+
+async def find_channel(
+    guild: discord.Guild,
+    channel_id: int,
+    expected_type: Type[T] = discord.abc.GuildChannel,
+) -> Optional[T]:
+    channels = await guild.fetch_channels()
+    for channel in channels:
+        if channel.id == channel_id and isinstance(expected_type, channel):
+            return channel
+
+    return None

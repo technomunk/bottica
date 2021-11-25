@@ -192,10 +192,8 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
     @cmd.command()
     async def stop(self, ctx: cmd.Context):
         """Stop playback immediately."""
-        if ctx.voice_client is not None:
-            ctx.voice_client.stop()
-            logger.debug("Disconnecting from %s.", self.ctx.guild.name)
-            atask(ctx.voice_client.disconnect())
+        mctx = self._wrap_context(ctx)
+        mctx.disconnect()
 
     @cmd.command(aliases=("pq",))
     async def purge(self, ctx: cmd.Context):
@@ -204,10 +202,7 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
         mctx.song_queue.clear()
         # Radio mode gets broken by cleared queue, switch to queue instead
         mctx.select_mode = SongSelectMode.QUEUE
-        if ctx.voice_client is not None:
-            ctx.voice_client.stop()
-            _logger.debug("Disconnecting from %s.", self.ctx.guild.name)
-            atask(ctx.voice_client.disconnect())
+        mctx.disconnect()
 
     @cmd.command()
     async def song(self, ctx: cmd.Context, sticky: bool = False):
