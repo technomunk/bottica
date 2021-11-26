@@ -106,8 +106,11 @@ class MusicContext:
             line = file.readline().strip()
             if line:
                 message_id = int(line)
-                message = await self._text_channel.fetch_message(message_id)
-                self._song_message = StickyMessage(message)
+                try:
+                    message = await self._text_channel.fetch_message(message_id)
+                    self._song_message = StickyMessage(message)
+                except Exception as e:
+                    _logger.warning(e)
 
             line = file.readline().strip()
             if line:
