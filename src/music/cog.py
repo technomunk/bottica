@@ -80,7 +80,8 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
                         mctx.play_next()
 
                 except Exception as e:
-                    _logger.exception(e, extra={"filename": filename})
+                    _logger.exception(e)
+                    _logger.info("guild id: %d", guild.id)
 
         _logger.info(
             "MusicCog initialized with %d songs and %d states",
