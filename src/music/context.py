@@ -108,7 +108,7 @@ class MusicContext:
                 message_id = int(line)
                 try:
                     message = await self._text_channel.fetch_message(message_id)
-                    self._song_message = StickyMessage(message)
+                    self._song_message = StickyMessage(message, lambda: self.persist_to_file())
                 except Exception as e:
                     _logger.warning(e)
 
@@ -148,7 +148,8 @@ class MusicContext:
 
         if sticky:
             if self.song_message is not None:
-                atask(self.song_message.update(embed=embed))
+                await self.song_message.update(embed=embed)
+                self.persist_to_file()
             else:
                 self.song_message = await StickyMessage.send(self._text_channel, embed=embed)
         else:
@@ -294,6 +295,8 @@ class MusicContext:
     @song_message.setter
     def song_message(self, value: Optional[StickyMessage]):
         self._song_message = value
+        if self._song_message is not None:
+            self._song_message.id_update_callback = lambda: self.persist_to_file()
         self.persist_to_file()
 
     @property
