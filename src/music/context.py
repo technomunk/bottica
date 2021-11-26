@@ -220,8 +220,9 @@ class MusicContext:
                 self._history_queue.push(self._select_queue.head)
 
             if len(self._history_queue) > self._min_repeat_interval:
-                assert self._history_queue.head is not None
-                self._select_queue.push(self._history_queue.head)
+                song = self._history_queue.pop()
+                assert song is not None
+                self._select_queue.push(song)
 
             # Might happen if the min repeat interval is smaller than the guild set
             if len(self._select_queue) <= 1:
