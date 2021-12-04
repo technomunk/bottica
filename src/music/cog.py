@@ -104,6 +104,7 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
             return
         if after.channel == mctx.voice_client.channel:
             if not mctx.is_playing():
+                await mctx.join_or_throw(after.channel)
                 _logger.debug("resuming playback on member connect")
                 mctx.play_next()
 
@@ -292,4 +293,4 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
             raise BotLacksVoicePermissions(channel)
 
         mctx = self.get_music_context(ctx)
-        mctx.join_or_throw(channel)
+        await mctx.join_or_throw(channel)
