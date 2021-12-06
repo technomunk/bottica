@@ -23,6 +23,7 @@ REACTIONS = {
     "command_seen": "👀",
     "command_failed": "❌",
     "command_succeeded": "✅",
+    "mention": ["💋", "👧", "🤖", "🕵️‍♀️", "👩‍💻", "🤹‍♀️"]
 }
 
 DEFAULT_TIMEOUT = 10

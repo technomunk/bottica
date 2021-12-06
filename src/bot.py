@@ -17,7 +17,7 @@ from music.cog import MusicCog
 from response import REACTIONS
 from sass import make_sass, should_sass
 
-BOT_VERSION = "0.14.2"
+BOT_VERSION = "0.14.3"
 
 intents = discord.Intents.default()
 intents.typing = False
@@ -61,7 +61,7 @@ async def status(ctx: commands.Context):
     """Print the bot status."""
     lines = [
         f"Running version `{BOT_VERSION}`",
-        "Happy to see you, my darlings!",
+        "Happy to see you, my darlings 💋!",
     ]
     for reporter in bot.status_reporters:
         lines.extend(reporter(ctx))
@@ -116,7 +116,8 @@ async def sass(ctx: commands.Context):
 async def on_message(message: discord.Message):
     if bot.user not in message.mentions:
         return
-    atask(message.add_reaction("🕵️‍♀️"))
+    reaction = random.choice(REACTIONS["mention"])
+    atask(message.add_reaction(reaction))
 
 
 def run_bot():
