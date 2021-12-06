@@ -25,17 +25,17 @@ async def safe_coro(coroutine: Coroutine, ctx: Optional[cmd.Context] = None):
         if ctx is not None:
             handle_command_error(ctx, error)
         _logger.exception(error, stacklevel=2)
-    except Exception as e:
+    except Exception as error:
+        _logger.exception(error, stacklevel=2)
         if ctx is not None:
             # deliberately skip providing ctx to avoid infinite error-handling
             atask(ctx.message.remove_reaction(REACTIONS["command_succeeded"], ctx.me))
             atask(ctx.message.add_reaction(REACTIONS["command_failed"]))
             embed = Embed(
                 title=":warning: Internal Error :warning:",
-                description="Something went wrong executing the command.",
+                description="Something went wrong executing the command.\n@TechnoGreg check me out!",
             )
             atask(ctx.message.reply(embed=embed))
-        _logger.exception(e, stacklevel=2)
 
 
 def atask(coroutine: Coroutine, ctx: Optional[cmd.Context] = None):
