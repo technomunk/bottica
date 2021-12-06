@@ -1,6 +1,7 @@
 # Response messages.
 
 import random
+
 from discord.ext import commands
 
 SUCCESSES = (

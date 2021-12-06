@@ -15,8 +15,9 @@ from discord.mentions import AllowedMentions
 from error import atask, event_loop, handle_command_error
 from music.cog import MusicCog
 from response import REACTIONS
+from sass import sass, should_sass
 
-BOT_VERSION = "0.13.1"
+BOT_VERSION = "0.14.0"
 
 intents = discord.Intents.default()
 intents.typing = False
@@ -44,7 +45,10 @@ async def on_ready():
 async def pre_invoke(ctx: commands.Context):
     _logger.info('calling "%s" in "%s"', ctx.message.content, ctx.guild.name)
     atask(ctx.message.add_reaction(REACTIONS["command_seen"]))
-    atask(ctx.trigger_typing())
+    if should_sass(ctx):
+        atask(ctx.reply(sass(ctx)))
+    else:
+        atask(ctx.trigger_typing())
 
 
 @bot.after_invoke
@@ -57,7 +61,7 @@ async def status(ctx: commands.Context):
     """Print the bot status."""
     lines = [
         f"Running version `{BOT_VERSION}`",
-        "DJ Bottica in da house!",
+        "Happy to see you, my darlings!",
     ]
     for reporter in bot.status_reporters:
         lines.extend(reporter(ctx))
@@ -100,6 +104,13 @@ async def choose(ctx: commands.Context, *mentions: Union[discord.Role, discord.M
         random.choice(tuple(selection_set)).mention if selection_set else "Nobody to choose!"
     )
     atask(ctx.reply(reply_content))
+
+
+@bot.listen("on_message")
+async def on_message(message: discord.Message):
+    if bot.user not in message.mentions:
+        return
+    atask(message.add_reaction("🕵️‍♀️"))
 
 
 def run_bot():
