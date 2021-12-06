@@ -15,9 +15,9 @@ from discord.mentions import AllowedMentions
 from error import atask, event_loop, handle_command_error
 from music.cog import MusicCog
 from response import REACTIONS
-from sass import sass, should_sass
+from sass import make_sass, should_sass
 
-BOT_VERSION = "0.14.1"
+BOT_VERSION = "0.14.2"
 
 intents = discord.Intents.default()
 intents.typing = False
@@ -46,7 +46,7 @@ async def pre_invoke(ctx: commands.Context):
     _logger.info('calling "%s" in "%s"', ctx.message.content, ctx.guild.name)
     atask(ctx.message.add_reaction(REACTIONS["command_seen"]))
     if should_sass(ctx):
-        atask(ctx.reply(sass(ctx)))
+        atask(ctx.reply(make_sass(ctx)))
     else:
         atask(ctx.trigger_typing())
 
@@ -104,6 +104,12 @@ async def choose(ctx: commands.Context, *mentions: Union[discord.Role, discord.M
         random.choice(tuple(selection_set)).mention if selection_set else "Nobody to choose!"
     )
     atask(ctx.reply(reply_content))
+
+
+@bot.command(aliases=("ass",))
+async def sass(ctx: commands.Context):
+    """Give me SASS!"""
+    atask(ctx.reply(make_sass(ctx)))
 
 
 @bot.listen("on_message")

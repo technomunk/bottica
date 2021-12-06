@@ -40,7 +40,7 @@ def should_sass(ctx: cmd.Context) -> bool:
     return random() < sass_chance
 
 
-def sass(ctx: cmd.Context) -> str:
+def make_sass(ctx: cmd.Context) -> str:
     """Generate a sassy response to provided user."""
     chosen_sass = choice(_ALL_SASS)
     return chosen_sass(ctx)
