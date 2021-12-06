@@ -127,6 +127,7 @@ class MusicContext:
         if self._voice_client is not None:
             self._voice_client.stop()
             atask(self._voice_client.disconnect())
+            self._voice_client = None
         self.persist_to_file()
 
     async def display_current_song_info(
