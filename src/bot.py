@@ -17,7 +17,7 @@ from music.cog import MusicCog
 from response import REACTIONS
 from sass import sass, should_sass
 
-BOT_VERSION = "0.14.0"
+BOT_VERSION = "0.14.1"
 
 intents = discord.Intents.default()
 intents.typing = False
