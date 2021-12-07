@@ -33,7 +33,7 @@ async def safe_coro(coroutine: Coroutine, ctx: Optional[cmd.Context] = None):
             atask(ctx.message.add_reaction(REACTIONS["command_failed"]))
             embed = Embed(
                 title=":warning: Internal Error :warning:",
-                description="Something went wrong executing the command.\n@TechnoGreg check me out!",
+                description="Something went wrong executing the command.\n<@305440304528359424> check me out!",
             )
             atask(ctx.message.reply(embed=embed))
 
