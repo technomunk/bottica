@@ -34,6 +34,7 @@ class MusicContext:
         "_text_channel",
         "_song_message",
         "_voice_client",
+        "_voice_channel_id",
     )
 
     def __init__(
@@ -55,6 +56,7 @@ class MusicContext:
         self._text_channel: discord.TextChannel = text_channel
         self._song_message: Optional[StickyMessage] = None
         self._voice_client = voice_client
+        self._voice_channel_id: Optional[int] = None
 
     @property
     def filename(self) -> str:
@@ -75,7 +77,7 @@ class MusicContext:
             self._voice_client = await channel.connect()
         else:
             await self._voice_client.move_to(channel)  # type: ignore
-        self.persist_to_file()
+        self.update_voice_channel()
 
     def persist_to_file(self):
         with open(self.filename, "w") as file:
@@ -121,6 +123,7 @@ class MusicContext:
                 channel = await find_channel(self._guild, channel_id, discord.VoiceChannel)
                 if channel is not None:
                     self._voice_client = await channel.connect()
+                    self._voice_channel_id = channel_id
 
         if new_select_mode != self._select_mode:
             self._update_select_mode(new_select_mode)
@@ -131,7 +134,7 @@ class MusicContext:
             self._voice_client.stop()
             atask(self._voice_client.disconnect())
             self._voice_client = None
-        self.persist_to_file()
+        self.update_voice_channel()
 
     async def display_current_song_info(
         self,
@@ -242,6 +245,16 @@ class MusicContext:
                 return self._select_queue.pop_random()
             else:
                 return self._select_queue.pop()
+
+    def update_voice_channel(self):
+        if self._voice_client is None or self._voice_client.channel is None:
+            channel_id = None
+        else:
+            channel_id = self._voice_client.channel.id
+
+        if channel_id != self._voice_channel_id:
+            self._voice_channel_id = channel_id
+            self.persist_to_file()
 
     def _update_select_mode(self, value: SongSelectMode):
         if value == SongSelectMode.RADIO or self._select_mode == SongSelectMode.RADIO:

@@ -12,7 +12,7 @@ from youtube_dl import YoutubeDL
 import response
 from error import atask
 from music import check
-from util import format_duration, has_listening_members
+from util import format_duration, has_listening_members, is_listening
 
 from .context import MusicContext, SongSelectMode
 from .error import AuthorNotInPlayingChannel, BotLacksVoicePermissions
@@ -101,14 +101,11 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
             return
 
         if member == self.bot.user:
-            if mctx.voice_client.channel != after.channel:
-                _logger.debug("Bot changed channel to %s", after.channel)
-                mctx.voice_client.channel = after.channel
-                mctx.persist_to_file()
+            mctx.update_voice_channel()
             return
 
         # check that a real user connected to a channel
-        if member.bot or after.channel is None:
+        if not is_listening(member) or after.channel is None:
             return
 
         if after.channel == mctx.voice_client.channel:
