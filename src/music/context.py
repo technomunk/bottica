@@ -8,7 +8,7 @@ import discord
 
 from error import atask
 from sticky_message import StickyMessage
-from util import find_channel, format_duration
+from util import find_channel, format_duration, has_listening_members
 
 from .error import AuthorNotInPlayingChannel
 from .file import AUDIO_FOLDER, GUILD_CONTEXT_FOLDER, GUILD_SET_FOLDER
@@ -62,6 +62,9 @@ class MusicContext:
 
     def is_playing(self) -> bool:
         return self._voice_client is not None and self._voice_client.is_playing()
+
+    def is_paused(self) -> bool:
+        return self._voice_client is not None and self._voice_client.is_paused()
 
     async def join_or_throw(self, channel: discord.VoiceChannel):
         """Join provided voice channel or throw a relevant exception."""
@@ -170,8 +173,7 @@ class MusicContext:
         if not self._voice_client.is_connected():
             raise RuntimeError("Bot is not connected to a voice channel.")
 
-        channel_members = self._voice_client.channel.members
-        if all(member.bot for member in channel_members):
+        if not has_listening_members(self._voice_client.channel):
             # skip playback. It will be attempted again in Cog.on_voice_state_update()
             _logger.debug("playback skipped due to no active members")
             if self.song_message is not None:

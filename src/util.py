@@ -67,3 +67,15 @@ async def find_channel(
             return channel
 
     return None
+
+
+def is_listening(member: discord.Member) -> bool:
+    if member.voice is None:
+        return False
+
+    state = member.voice.state
+    return not any([state.afk, state.deaf, state.self_deaf])
+
+
+def has_listening_members(channel: discord.VoiceChannel) -> bool:
+    return any(is_listening(member) for member in channel.members)

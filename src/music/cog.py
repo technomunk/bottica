@@ -12,10 +12,10 @@ from youtube_dl import YoutubeDL
 import response
 from error import atask
 from music import check
-from util import format_duration
+from util import format_duration, has_listening_members
 
 from .context import MusicContext, SongSelectMode
-from .error import BotLacksVoicePermissions
+from .error import AuthorNotInPlayingChannel, BotLacksVoicePermissions
 from .file import AUDIO_FOLDER, DATA_FOLDER, GUILD_CONTEXT_FOLDER, SONG_REGISTRY_FILENAME
 from .normalize import normalize_song
 from .song import SongInfo, SongRegistry
@@ -96,14 +96,27 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
         _before: discord.VoiceState,
         after: discord.VoiceState,
     ):
-        # check that a real user connected to a channel
-        if member.bot or after.channel is None:
-            return
         mctx = self.contexts.get(after.channel.guild.id)
         if mctx is None or mctx.voice_client is None:
             return
+
+        if member == self.bot.user:
+            if mctx.voice_client.channel != after.channel:
+                _logger.debug("Bot changed channel to %s", after.channel)
+                mctx.voice_client.channel = after.channel
+                mctx.persist_to_file()
+            return
+
+        # check that a real user connected to a channel
+        if member.bot or after.channel is None:
+            return
+
         if after.channel == mctx.voice_client.channel:
-            if not mctx.is_playing():
+            if (
+                not mctx.is_playing()
+                and not mctx.is_paused()
+                and has_listening_members(after.channel)
+            ):
                 await mctx.join_or_throw(after.channel)
                 _logger.debug("resuming playback on member connect")
                 mctx.play_next()
@@ -293,4 +306,8 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
             raise BotLacksVoicePermissions(channel)
 
         mctx = self.get_music_context(ctx)
-        await mctx.join_or_throw(channel)
+        try:
+            await mctx.join_or_throw(channel)
+        except AuthorNotInPlayingChannel as e:
+            e.message = "I'm already playing in another channel, please join me instad :kiss:"
+            raise e
