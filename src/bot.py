@@ -17,7 +17,7 @@ from music.cog import MusicCog
 from response import REACTIONS
 from sass import make_sass, should_sass
 
-BOT_VERSION = "0.15.0"
+BOT_VERSION = "0.15.1"
 
 intents = discord.Intents.default()
 intents.typing = False
@@ -74,6 +74,8 @@ async def rate(ctx: commands.Context, user: discord.Member):
     """Rate the provided user out of 10."""
     if user.id == 305440304528359424 or user == bot.user:
         rating = 10
+    elif user.bot:
+        rating = 0
     elif user.id == 420481371253768203:
         rating = 9001
     else:
