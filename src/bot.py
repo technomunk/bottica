@@ -17,7 +17,7 @@ from music.cog import MusicCog
 from response import REACTIONS
 from sass import make_sass, should_sass
 
-BOT_VERSION = "0.14.4"
+BOT_VERSION = "0.15.0"
 
 intents = discord.Intents.default()
 intents.typing = False
@@ -61,7 +61,7 @@ async def status(ctx: commands.Context):
     """Print the bot status."""
     lines = [
         f"Running version `{BOT_VERSION}`",
-        "Happy to see you, my darlings 💋!",
+        "I'm fine, nothing is wrong!",
     ]
     for reporter in bot.status_reporters:
         lines.extend(reporter(ctx))
@@ -113,11 +113,21 @@ async def sass(ctx: commands.Context):
 
 
 @bot.listen("on_message")
-async def on_message(message: discord.Message):
+async def react_to_mentions(message: discord.Message):
     if bot.user not in message.mentions:
         return
     reaction = random.choice(REACTIONS["mention"])
     atask(message.add_reaction(reaction))
+
+
+@bot.listen("on_message")
+async def jealousy(message: discord.Message):
+    if message.type != discord.MessageType.new_member:
+        return
+
+    reaction = random.choice(REACTIONS["jealousy"])
+    atask(message.add_reaction(reaction))
+    atask(message.reply("Who is this!?"))
 
 
 def run_bot():
