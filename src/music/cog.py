@@ -93,13 +93,12 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
     async def on_voice_state_update(
         self,
         member: discord.Member,
-        _before: discord.VoiceState,
+        before: discord.VoiceState,
         after: discord.VoiceState,
     ):
-        if after.channel is None:
-            return
+        guild_id = after.channel.id if after.channel is not None else before.channel.id
 
-        mctx = self.contexts.get(after.channel.guild.id)
+        mctx = self.contexts.get(guild_id)
         if mctx is None or mctx.voice_client is None:
             return
 
