@@ -14,7 +14,7 @@ from discord.mentions import AllowedMentions
 
 from error import atask, event_loop, handle_command_error
 from music.cog import MusicCog
-from response import REACTIONS
+from response import JEALOUS, REACTIONS
 from sass import make_sass, should_sass
 
 BOT_VERSION = "0.15.1"
@@ -124,12 +124,13 @@ async def react_to_mentions(message: discord.Message):
 
 @bot.listen("on_message")
 async def jealousy(message: discord.Message):
-    if message.type != discord.MessageType.new_member:
+    if message.type != discord.MessageType.new_member or not message.mentions[0].bot:
         return
 
     reaction = random.choice(REACTIONS["jealousy"])
     atask(message.add_reaction(reaction))
-    atask(message.reply("Who is this!?"))
+    response = random.choice(JEALOUS)
+    atask(message.reply(response))
 
 
 def run_bot():

@@ -19,6 +19,15 @@ FAILS = (
     ":poop:",
     ":frowning::-1:",
 )
+
+JEALOUS = (
+    "Who's this?",
+    "Who is that?",
+    "What are they doing here?",
+    "Are you cheating on me?",
+    "But what am I to you?",
+)
+
 REACTIONS = {
     "command_seen": "👀",
     "command_failed": "❌",
