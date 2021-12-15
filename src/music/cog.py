@@ -96,7 +96,7 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
         before: discord.VoiceState,
         after: discord.VoiceState,
     ):
-        guild_id = after.channel.id if after.channel is not None else before.channel.id
+        guild_id = after.channel.guild.id if after.channel is not None else before.channel.guild.id
 
         mctx = self.contexts.get(guild_id)
         if mctx is None or mctx.voice_client is None:
