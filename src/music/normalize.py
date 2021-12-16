@@ -2,12 +2,15 @@ import logging
 from os import remove
 from os.path import splitext
 
+import ffmpeg_normalize
 from ffmpeg_normalize import FFmpegNormalize, MediaFile
 
 from .file import AUDIO_FOLDER
 from .song import SongInfo
 
 _logger = logging.getLogger(__name__)
+
+ffmpeg_normalize._media_file.logger.setLevel(logging.ERROR)
 
 _default_config = FFmpegNormalize(
     target_level=-18,

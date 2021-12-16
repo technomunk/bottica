@@ -3,11 +3,10 @@
 import logging
 import random
 from os import path
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional
 
 import discord
 import discord.ext.commands as cmd
-from youtube_dl import YoutubeDL
 
 import response
 from error import atask
@@ -15,43 +14,20 @@ from music import check
 from util import format_duration, has_listening_members, is_listening
 
 from .context import MusicContext, SongSelectMode
+from .download import Downloader, extract_key
 from .error import AuthorNotInPlayingChannel, BotLacksVoicePermissions
-from .file import AUDIO_FOLDER, DATA_FOLDER, GUILD_CONTEXT_FOLDER, SONG_REGISTRY_FILENAME
+from .file import GUILD_CONTEXT_FOLDER, SONG_REGISTRY_FILENAME
 from .normalize import normalize_song
-from .song import SongInfo, SongRegistry
+from .song import SongRegistry
 
 ALLOWED_INFO_TYPES = ("video", "url")
 _logger = logging.getLogger(__name__)
 
 
-def extract_key(info: dict) -> Tuple[str, str]:
-    """
-    Generate key for a given song.
-    """
-    info_type = info.get("_type", "video")
-    if info_type not in ("video", "url"):
-        raise NotImplementedError(f"genname(info['_type']: '{info_type}')")
-    domain = info.get("ie_key", info.get("extractor_key")).lower()
-    return (domain, info["id"])
-
-
-def extract_song_info(info: dict) -> SongInfo:
-    domain, id = extract_key(info)
-    return SongInfo(domain, id, info["ext"], info["duration"], info["title"])
-
-
 class MusicCog(cmd.Cog, name="Music"):  # type: ignore
     def __init__(self, bot: cmd.Bot) -> None:
         self.bot = bot
-        ytdl_options = {
-            "format": "bestaudio",
-            "outtmpl": AUDIO_FOLDER + "%(extractor)s_%(id)s.%(ext)s",
-            "cachedir": DATA_FOLDER + "dlcache",
-            "ignoreerrors": True,
-            "cookiefile": DATA_FOLDER + "cookies.txt",
-            "quiet": True,
-        }
-        self.ytdl = YoutubeDL(ytdl_options)
+        self.loader = Downloader(bot.loop)
         self.song_registry = SongRegistry(SONG_REGISTRY_FILENAME)
         self.contexts: Dict[int, MusicContext] = {}
 
@@ -147,15 +123,12 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
                 atask(ctx.reply(embed=embed))
                 _logger.warning("Skipping %s as it is a %s", info.get("url"), info["_type"])
                 continue
+
             key = extract_key(info)
             song = self.song_registry.get(key)
             if song is None:
                 _logger.debug("downloading '%s'", key)
-                song_info = await self.bot.loop.run_in_executor(
-                    None, lambda: self.ytdl.process_ie_result(info)
-                )
-                song = extract_song_info(song_info)
-                # normalize song without blocking
+                song = await self.loader.download(info)
                 await self.bot.loop.run_in_executor(None, lambda: normalize_song(song))
                 self.song_registry.put(song)
 
@@ -174,11 +147,7 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
         """
         mctx = self.get_music_context(ctx)
         await mctx.join_or_throw(ctx.author.voice.channel)
-        # download should be run asynchronously as to avoid blocking the bot
-        req = await self.bot.loop.run_in_executor(
-            None,
-            lambda: self.ytdl.extract_info(query, process=False, download=False),
-        )
+        req = await self.loader.get_info(query)
         req_type = req.get("_type", "video")
         if req_type == "playlist":
             atask(self._queue_audio(ctx, [entry for entry in req["entries"]]), ctx)
