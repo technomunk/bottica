@@ -17,7 +17,7 @@ from music.cog import MusicCog
 from response import JEALOUS, REACTIONS
 from sass import make_sass, should_sass
 
-BOT_VERSION = "0.15.1"
+BOT_VERSION = "0.15.2"
 
 intents = discord.Intents.default()
 intents.typing = False
