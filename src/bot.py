@@ -7,6 +7,7 @@ from argparse import ArgumentParser
 from typing import Set, Union
 
 import discord
+import sentry_sdk
 import toml
 from discord.ext import commands
 from discord.ext.commands import Bot as DiscordBot
@@ -140,9 +141,14 @@ def run_bot():
         description='Run a discord bot named "Bottica".',
     )
     parser.add_argument(
-        "--token",
+        "--discord-token",
         type=str,
         help="Discord API token to use, will override one provided in config.",
+    )
+    parser.add_argument(
+        "--sentry-token",
+        type=str,
+        help="Sentry SDK API token to use. Will override one provided in config. (optional)"
     )
     parser.add_argument(
         "--log",
@@ -165,10 +171,15 @@ def run_bot():
         _logger.error('Failed to parse "config.toml".')
         _logger.exception(e, stack_info=False)
 
-    if "token" not in config and not args.token:
+    if "discord_token" not in config and not args.discor_token:
         print("Please provide an API token to use!")
-        print('Add it to "config.toml" or provide with --token.')
+        print('Add it to "config.toml" or provide with --discord-token.')
         return
+
+    sentry_token = config.get("sentry_token", args.sentry_token)
+    if sentry_token:
+        print("Initializing sentry")
+        sentry_sdk.init(sentry_token)
 
     # set up logging
     log_level = args.log or config.get("log") or logging.INFO

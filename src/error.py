@@ -7,6 +7,8 @@ from typing import Coroutine, Optional
 
 import discord.ext.commands as cmd
 from discord import Embed
+from sentry_sdk import capture_exception
+from sentry_sdk.api import capture_message
 
 from report_err import ReportableError
 from response import REACTIONS
@@ -26,6 +28,7 @@ async def safe_coro(coroutine: Coroutine, ctx: Optional[cmd.Context] = None):
             handle_command_error(ctx, error)
         _logger.exception(error, stacklevel=2)
     except Exception as error:
+        capture_exception(error)
         _logger.exception(error, stacklevel=2)
         if ctx is not None:
             # deliberately skip providing ctx to avoid infinite error-handling
@@ -33,7 +36,7 @@ async def safe_coro(coroutine: Coroutine, ctx: Optional[cmd.Context] = None):
             atask(ctx.message.add_reaction(REACTIONS["command_failed"]))
             embed = Embed(
                 title=":warning: Internal Error :warning:",
-                description="Something went wrong executing the command.\n<@305440304528359424> check me out!",
+                description="Something went wrong executing the command.",
             )
             atask(ctx.message.reply(embed=embed))
 
@@ -65,4 +68,5 @@ async def handle_command_error(ctx: cmd.Context, error: cmd.CommandError):
             title=":warning: Internal Error :warning:",
             description="Something went wrong executing the command.",
         )
+        capture_exception(error)
         atask(ctx.message.reply(embed=embed))
