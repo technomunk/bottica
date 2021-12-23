@@ -176,7 +176,7 @@ def run_bot():
         print('Add it to "config.toml" or provide with --discord-token.')
         return
 
-    sentry_token = config.get("sentry_token", args.sentry_token)
+    sentry_token = args.sentry_token or config.get("sentry_token", "")
     if sentry_token:
         print("Initializing sentry")
         sentry_sdk.init(sentry_token)
@@ -194,7 +194,7 @@ def run_bot():
     bot.add_cog(MusicCog(bot))
 
     bot.on_command_error = handle_command_error
-    bot.run(args.token or config["token"])
+    bot.run(args.discord_token or config["discord_token"])
 
 
 if __name__ == "__main__":
