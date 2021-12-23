@@ -8,7 +8,6 @@ from typing import Coroutine, Optional
 import discord.ext.commands as cmd
 from discord import Embed
 from sentry_sdk import capture_exception
-from sentry_sdk.api import capture_message
 
 from report_err import ReportableError
 from response import REACTIONS

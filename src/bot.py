@@ -172,7 +172,7 @@ def run_bot():
         _logger.exception(e, stack_info=False)
 
     if "discord_token" not in config and not args.discor_token:
-        print("Please provide an API token to use!")
+        print("Please provide a Discord API token to use!")
         print('Add it to "config.toml" or provide with --discord-token.')
         return
 
