@@ -4,7 +4,6 @@
 import logging
 import random
 from argparse import ArgumentParser
-from typing import Set, Union
 
 import discord
 import sentry_sdk
@@ -13,12 +12,11 @@ from discord.ext import commands
 from discord.ext.commands import Bot as DiscordBot
 from discord.mentions import AllowedMentions
 
+from commands import register_commands
 from error import atask, event_loop, handle_command_error
 from music.cog import MusicCog
 from response import JEALOUS, REACTIONS
 from sass import make_sass, should_sass
-
-BOT_VERSION = "0.15.3"
 
 intents = discord.Intents.default()
 intents.typing = False
@@ -57,64 +55,6 @@ async def post_invoke(ctx: commands.Context):
     atask(ctx.message.add_reaction(REACTIONS["command_succeeded"]))
 
 
-@bot.command()
-async def status(ctx: commands.Context):
-    """Print the bot status."""
-    lines = [
-        f"Running version `{BOT_VERSION}`",
-        "I'm fine, nothing is wrong!",
-    ]
-    for reporter in bot.status_reporters:
-        lines.extend(reporter(ctx))
-    embed = discord.Embed(description="\n".join(lines))
-    atask(ctx.reply(embed=embed))
-
-
-@bot.command()
-async def rate(ctx: commands.Context, user: discord.Member):
-    """Rate the provided user out of 10."""
-    if user.id == 305440304528359424 or user == bot.user:
-        rating = 10
-    elif user.bot:
-        rating = 0
-    elif user.id == 420481371253768203:
-        rating = 9001
-    else:
-        rating = random.randint(1, 9)
-    atask(ctx.reply(f"{user.mention} is {rating}/10."))
-
-
-@bot.command()
-async def roll(ctx: commands.Context, max: int = 100):
-    """Select a random number up to provided value or 100."""
-    value = random.randint(1, max)
-    atask(ctx.reply(f"{value} / {max}"))
-
-
-@bot.command()
-async def choose(ctx: commands.Context, *mentions: Union[discord.Role, discord.Member]):
-    """Select a single member from provided mentions."""
-    selection_set: Set[discord.Member] = set()
-    for mention in mentions:
-        if isinstance(mention, discord.Role):
-            for member in mention.members:
-                selection_set.add(member)
-        elif isinstance(mention, discord.Member):
-            selection_set.add(mention)
-        else:
-            raise TypeError
-    reply_content = (
-        random.choice(tuple(selection_set)).mention if selection_set else "Nobody to choose!"
-    )
-    atask(ctx.reply(reply_content))
-
-
-@bot.command(aliases=("ass",))
-async def sass(ctx: commands.Context):
-    """Give me SASS!"""
-    atask(ctx.reply(make_sass(ctx)))
-
-
 @bot.listen("on_message")
 async def react_to_mentions(message: discord.Message):
     if bot.user not in message.mentions:
@@ -148,7 +88,7 @@ def run_bot():
     parser.add_argument(
         "--sentry-token",
         type=str,
-        help="Sentry SDK API token to use. Will override one provided in config. (optional)"
+        help="Sentry SDK API token to use. Will override one provided in config. (optional)",
     )
     parser.add_argument(
         "--log",
@@ -191,6 +131,7 @@ def run_bot():
     logging.getLogger("discord").setLevel(logging.WARNING)
 
     bot.status_reporters = []
+    register_commands(bot)
     bot.add_cog(MusicCog(bot))
 
     bot.on_command_error = handle_command_error
