@@ -180,6 +180,12 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
             mctx.play_next()
 
     @cmd.command()
+    async def reset(self, ctx: cmd.Context):
+        """Let me gather my thoughts before trying again."""
+        mctx = self.get_music_context(ctx)
+        mctx.clear()
+
+    @cmd.command()
     @cmd.check(check.bot_is_voice_connected)
     async def pause(self, ctx: cmd.Context):
         """Pause current playback."""
@@ -200,7 +206,7 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
         mctx.disconnect()
 
     @cmd.command(aliases=("pq",))
-    async def purge(self, ctx: cmd.Context):
+    async def clear(self, ctx: cmd.Context):
         """Drop any of the currently queued songs."""
         mctx = self.get_music_context(ctx)
         mctx.song_queue.clear()

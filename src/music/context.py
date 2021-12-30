@@ -58,6 +58,17 @@ class MusicContext:
         self._voice_client = voice_client
         self._voice_channel_id: Optional[int] = None
 
+    def clear(self):
+        """Reset context to a clean state ready for a new play attempt."""
+        self._select_queue.clear()
+        self._history_queue.clear()
+        self._text_channel = None
+        self._song_message = None
+        self._voice_channel_id = None
+        self._select_mode = SongSelectMode.QUEUE
+        self.disconnect()
+        self.persist_to_file()
+
     @property
     def filename(self) -> str:
         return f"{GUILD_CONTEXT_FOLDER}{self._guild.id}.txt"

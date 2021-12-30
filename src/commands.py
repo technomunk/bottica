@@ -16,7 +16,7 @@ async def status(ctx: cmd.Context):
     """Print the bot status."""
     lines = [
         f"Running version `{BOT_VERSION}`",
-        "I'm fine, nothing is wrong!",
+        "`purge` is now called `clear`",
     ]
     for reporter in ctx.bot.status_reporters:
         lines.extend(reporter(ctx))
