@@ -62,7 +62,6 @@ class MusicContext:
         """Reset context to a clean state ready for a new play attempt."""
         self._select_queue.clear()
         self._history_queue.clear()
-        self._text_channel = None
         self._song_message = None
         self._voice_channel_id = None
         self._select_mode = SongSelectMode.QUEUE
