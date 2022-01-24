@@ -6,7 +6,7 @@ from typing import Set, Union
 import discord
 from discord.ext import commands as cmd
 
-from error import atask
+from infrastructure.error import atask
 from sass import make_sass
 from version import BOT_VERSION
 
@@ -17,6 +17,7 @@ async def status(ctx: cmd.Context):
     lines = [
         f"Running version `{BOT_VERSION}`",
         "`purge` is now called `clear`",
+        "And I'm happy I'm here!",
     ]
     for reporter in ctx.bot.status_reporters:
         lines.extend(reporter(ctx))

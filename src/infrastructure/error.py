@@ -9,9 +9,8 @@ import discord.ext.commands as cmd
 from discord import Embed
 from sentry_sdk import capture_exception
 
-from report_err import ReportableError
+from .friendly_error import make_user_friendly
 from response import REACTIONS
-from util import convertee_names
 
 _logger = logging.getLogger(__name__)
 event_loop = asyncio.get_event_loop()
@@ -50,22 +49,15 @@ def atask(coroutine: Coroutine, ctx: Optional[cmd.Context] = None):
 async def handle_command_error(ctx: cmd.Context, error: cmd.CommandError):
     atask(ctx.message.remove_reaction(REACTIONS["command_succeeded"], ctx.me))
     atask(ctx.message.add_reaction(REACTIONS["command_failed"]))
-    if isinstance(error, cmd.UserInputError):
-        if isinstance(error, cmd.BadUnionArgument):
-            param_name = error.errors[0].argument
-            reply_text = f"{param_name} is not a {convertee_names(error.converters)}"
-            atask(ctx.reply(reply_text))
-        else:
-            atask(ctx.reply(error))
-    elif isinstance(error, cmd.CommandNotFound):
-        atask(ctx.reply(error))
-    elif isinstance(error, ReportableError):
-        _logger.warning(error)
-        atask(ctx.reply(error))
-    else:
-        embed = Embed(
+
+    if not isinstance(error, cmd.UserInputError):
+        capture_exception(error)
+
+    response = make_user_friendly(error)
+    if not response:
+        response = Embed(
             title=":warning: Internal Error :warning:",
             description="Something went wrong executing the command.",
         )
-        capture_exception(error)
-        atask(ctx.message.reply(embed=embed))
+
+    atask(ctx.message.reply(response))

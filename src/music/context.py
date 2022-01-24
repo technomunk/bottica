@@ -6,9 +6,9 @@ from typing import Optional
 
 import discord
 
-from error import atask
-from sticky_message import StickyMessage
-from util import find_channel, format_duration, has_listening_members
+from infrastructure.error import atask
+from infrastructure.sticky_message import StickyMessage
+from infrastructure.util import find_channel, format_duration, has_listening_members
 
 from .error import AuthorNotInPlayingChannel
 from .file import AUDIO_FOLDER, GUILD_CONTEXT_FOLDER, GUILD_SET_FOLDER

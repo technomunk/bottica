@@ -32,10 +32,7 @@ class Downloader:
         )
 
     async def download(self, info: dict) -> SongInfo:
-        info = await self.loop.run_in_executor(
-            None,
-            lambda: self._loader.process_ie_result(info)
-        )
+        info = await self.loop.run_in_executor(None, lambda: self._loader.process_ie_result(info))
         _logger.debug("download complete")
         return _extract_song_info(info)
 

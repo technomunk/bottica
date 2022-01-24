@@ -13,7 +13,7 @@ Start by using `b.help` which will print all available commands.
 
 ## Installing
 
-- Get [python 3](https://www.python.org/downloads/).
+- Get [python 3.10](https://www.python.org/downloads/).
 - Create a virtual environment: `python3 -m venv <venv>`
 - Activate virtual environment:
 	+ Windows: `source <venv>/Scripts/activate`
@@ -27,12 +27,6 @@ Start by using `b.help` which will print all available commands.
 	+ Windows: `source <venv>/Scripts/activate`
 	+ Linux/MacOS: `source <venv>/bin/activate`
 - Run the bot: `python3 src/bot.py`
-
-## Wishlist
-
-- Active queue message (updates as songs change)
-- Guess the song game
-- Emojifier
 
 ## Contributing
 

@@ -9,9 +9,9 @@ import discord
 import discord.ext.commands as cmd
 
 import response
-from error import atask
+from infrastructure.error import atask
+from infrastructure.util import format_duration, has_listening_members, is_listening
 from music import check
-from util import format_duration, has_listening_members, is_listening
 
 from .context import MusicContext, SongSelectMode
 from .download import Downloader, extract_key

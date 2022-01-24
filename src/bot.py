@@ -8,12 +8,12 @@ from argparse import ArgumentParser
 import discord
 import sentry_sdk
 import toml
-from discord.ext import commands
+from discord.ext import commands as cmd
 from discord.ext.commands import Bot as DiscordBot
 from discord.mentions import AllowedMentions
 
 from commands import register_commands
-from error import atask, event_loop, handle_command_error
+from infrastructure.error import atask, event_loop, handle_command_error
 from music.cog import MusicCog
 from response import JEALOUS, REACTIONS
 from sass import make_sass, should_sass
@@ -23,7 +23,7 @@ intents.typing = False
 intents.presences = False
 intents.members = True
 bot = DiscordBot(
-    "b.",
+    cmd.when_mentioned_or("b."),
     loop=event_loop,
     intents=intents,
     allowed_mentions=AllowedMentions(users=True),
@@ -41,7 +41,7 @@ async def on_ready():
 
 
 @bot.before_invoke
-async def pre_invoke(ctx: commands.Context):
+async def pre_invoke(ctx: cmd.Context):
     _logger.info('calling "%s" in "%s"', ctx.message.content, ctx.guild.name)
     atask(ctx.message.add_reaction(REACTIONS["command_seen"]))
     if should_sass(ctx):
@@ -51,7 +51,7 @@ async def pre_invoke(ctx: commands.Context):
 
 
 @bot.after_invoke
-async def post_invoke(ctx: commands.Context):
+async def post_invoke(ctx: cmd.Context):
     atask(ctx.message.add_reaction(REACTIONS["command_succeeded"]))
 
 

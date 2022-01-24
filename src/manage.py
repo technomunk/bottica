@@ -11,7 +11,7 @@ from ffmpeg_normalize import FFmpegNormalize
 from music.file import AUDIO_FOLDER, GUILD_SET_FOLDER, SONG_REGISTRY_FILENAME
 from music.normalize import normalize_song
 from music.song import SongInfo, SongKey
-from util import format_size
+from infrastructure.util import format_size
 
 MULTIPLIERS = {
     "K": 1 << 10,

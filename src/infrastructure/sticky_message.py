@@ -4,7 +4,7 @@ from typing import Callable, Optional
 
 import discord
 
-from error import atask
+from infrastructure.error import atask
 
 
 class StickyMessage:
