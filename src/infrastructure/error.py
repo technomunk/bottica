@@ -3,6 +3,7 @@
 import asyncio
 import logging
 from asyncio.exceptions import CancelledError
+from re import I
 from typing import Coroutine, Optional
 
 import discord.ext.commands as cmd
@@ -60,4 +61,7 @@ async def handle_command_error(ctx: cmd.Context, error: cmd.CommandError):
             description="Something went wrong executing the command.",
         )
 
-    atask(ctx.message.reply(response))
+    if isinstance(response, Embed):
+        atask(ctx.message.reply(embed=response))
+    else:
+        atask(ctx.message.reply(response))
