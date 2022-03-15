@@ -208,7 +208,10 @@ def _unlink_songs_in(filepath: str, predicate: Callable[[SongKey], bool], verbos
         open(tmp_filename, "w", encoding=FILE_ENCODING) as wfile,
     ):
         reader = csv.reader(rfile, dialect=SongCSVDialect)
-        header_row = next(reader)
+        try:
+            header_row = next(reader)
+        except StopIteration:
+            header_row = ["domain", "id"]
 
         assert list(header_row[:2]) == ["domain", "id"], "Unable to unlink non-csv files"
 

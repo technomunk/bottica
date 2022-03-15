@@ -134,7 +134,12 @@ class _SongKeyCollection:
 
     def _keys_in(self, file: Iterable[str]) -> Generator[SongKey, None, None]:
         reader = csv.reader(file, dialect=SongCSVDialect)
-        header_row = next(reader)
+
+        try:
+            header_row = next(reader)
+        except StopIteration:
+            # file was empty
+            return
 
         assert list(header_row[:2]) == ["domain", "id"], "invalid song collection backing"
 
