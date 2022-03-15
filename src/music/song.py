@@ -4,12 +4,11 @@ import csv
 import logging
 from collections import deque
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import asdict, astuple, dataclass
 from os import path
 from random import randrange
 from typing import Deque, Dict, Generator, Iterable, Optional, Set, Tuple, cast
 
-from attr import asdict, astuple
 from dataclass_csv import DataclassReader
 
 FILE_ENCODING = "utf8"
