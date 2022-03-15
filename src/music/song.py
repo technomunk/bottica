@@ -1,38 +1,46 @@
 from __future__ import annotations
 
+import csv
 import logging
 from collections import deque
+from contextlib import contextmanager
+from dataclasses import dataclass
 from os import path
 from random import randrange
 from typing import Deque, Dict, Generator, Iterable, Optional, Set, Tuple, cast
 
+from attr import asdict, astuple
+from dataclass_csv import DataclassReader
+
 FILE_ENCODING = "utf8"
+
+SongKey = Tuple[str, str]
 
 _logger = logging.getLogger(__name__)
 
-SongKey = Tuple[str, str]
+
+class SongCSVDialect(csv.Dialect):
+    delimiter = ";"
+    doublequote = False
+    escapechar = "\\"
+    lineterminator = "\n"
+    quotechar = '"'
+    skipinitialspace = True
+    quoting = csv.QUOTE_MINIMAL
+    strict = True
 
 
 def keystr(key: SongKey) -> str:
     return " ".join(key)
 
 
+@dataclass(slots=True)
 class SongInfo:
-    __slots__ = "domain", "id", "ext", "duration", "title"
-
-    def __init__(
-        self,
-        domain: str,
-        id: str,
-        ext: str,
-        duration: int,
-        title: str,
-    ) -> None:
-        self.domain = domain
-        self.id = id
-        self.ext = ext
-        self.duration = duration
-        self.title = title
+    domain: str
+    id: str
+    ext: str
+    duration: int
+    title: str
 
     @property
     def key(self) -> SongKey:
@@ -55,22 +63,12 @@ class SongInfo:
         """
         return f"[{self.title}]({self.link})"
 
-    @classmethod
-    def from_line(cls, line: str) -> SongInfo:
-        [domain, id, ext, dur, title] = line.strip().split(maxsplit=4)
-        duration = int(dur)
-        return cls(domain, id, ext, duration, title)
 
-    def to_line(self) -> str:
-        return " ".join(
-            (
-                self.domain,
-                self.id,
-                self.ext,
-                repr(self.duration),
-                self.title,
-            )
-        )
+@contextmanager
+def open_song_registry(filename: str) -> Generator[Iterable[SongInfo], None, None]:
+    with open(filename, "r", encoding=FILE_ENCODING) as file:
+        reader = DataclassReader(file, SongInfo, dialect=cast(str, SongCSVDialect))
+        yield reader
 
 
 class SongRegistry:
@@ -81,11 +79,12 @@ class SongRegistry:
     def __init__(self, filename: str) -> None:
         self._data: Dict[SongKey, Tuple[str, int, str]] = {}
         self._filename = filename
+        self._header_written = False
         if path.exists(filename):
-            with open(filename, "r", encoding=FILE_ENCODING) as file:
-                for line in file:
-                    song = SongInfo.from_line(line)
+            with open_song_registry(filename) as song_registry:
+                for song in song_registry:
                     self._data[song.key] = (song.ext, song.duration, song.title)
+            self._header_written = True
         else:
             with open(filename, "w", encoding=FILE_ENCODING) as file:
                 assert file
@@ -114,8 +113,11 @@ class SongRegistry:
     def put(self, song: SongInfo) -> None:
         self._data[song.key] = (song.ext, song.duration, song.title)
         with open(self._filename, "a", encoding=FILE_ENCODING) as file:
-            file.write(song.to_line())
-            file.write("\n")
+            writer = csv.writer(file, dialect=SongCSVDialect)
+            if not self._header_written:
+                writer.writerow(asdict(song).keys())
+                self._header_written = True
+            writer.writerow(astuple(song))
 
 
 class _SongKeyCollection:
@@ -130,9 +132,14 @@ class _SongKeyCollection:
     def _deref(self, song: SongKey) -> SongInfo:
         return self._registry[song]
 
-    def _keys_in(self, lines: Iterable[str]) -> Generator[SongKey, None, None]:
-        for line in lines:
-            key = cast(SongKey, tuple(line.strip().split(maxsplit=1)))
+    def _keys_in(self, file: Iterable[str]) -> Generator[SongKey, None, None]:
+        reader = csv.reader(file, dialect=SongCSVDialect)
+        header_row = next(reader)
+
+        assert list(header_row[:2]) == ["domain", "id"], "invalid song collection backing"
+
+        for row in reader:
+            key = row[0], row[1]
             if key in self._registry:
                 yield key
             else:
@@ -224,11 +231,13 @@ class SongSet(_SongKeyCollection):
     def __init__(self, registry: SongRegistry, filename: str) -> None:
         super().__init__(registry)
         self.filename = filename
+        self._header_written = False
         self._data: Set[SongKey] = set()
 
         if path.exists(filename):
             with open(filename, "r", encoding=FILE_ENCODING) as file:
                 self._data = set(self._keys_in(file))
+            self._header_written = True
         else:
             with open(filename, "w", encoding=FILE_ENCODING) as file:
                 assert file
@@ -238,8 +247,11 @@ class SongSet(_SongKeyCollection):
             return False
         self._data.add(song.key)
         with open(self.filename, "a", encoding=FILE_ENCODING) as file:
-            file.write(keystr(song.key))
-            file.write("\n")
+            writer = csv.writer(file, dialect=SongCSVDialect)
+            if not self._header_written:
+                writer.writerow(["domain", "id"])
+                self._header_written = True
+            writer.writerow(song.key)
         return True
 
     def __contains__(self, song: SongInfo) -> bool:

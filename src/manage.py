@@ -1,17 +1,23 @@
-# Bottica data management tooling.
-# Use caution when using while Bottica is running.
+"""
+Bottica data management tooling.
+Use caution when using while Bottica is running.
+"""
 
+import csv
+from dataclasses import asdict, astuple
 from os import listdir, remove, replace, stat
 from os.path import isfile, splitext
-from typing import Callable, List, Set, Tuple, cast
+from typing import Callable, List, Set, Tuple
 
 import click
 from ffmpeg_normalize import FFmpegNormalize
 
+from infrastructure.util import format_size
 from music.file import AUDIO_FOLDER, GUILD_SET_FOLDER, SONG_REGISTRY_FILENAME
 from music.normalize import normalize_song
-from music.song import SongInfo, SongKey
-from infrastructure.util import format_size
+from music.song import FILE_ENCODING, SongCSVDialect, SongKey, open_song_registry
+from version import BOT_VERSION
+from version.migrate import MIGRATIONS
 
 MULTIPLIERS = {
     "K": 1 << 10,
@@ -28,7 +34,13 @@ def cli():
 
 @cli.command()
 @click.argument("count", type=int)
-@click.argument("unit", type=str, required=False, default="")
+@click.argument(
+    "unit",
+    type=str,
+    required=False,
+    default="",
+    shell_complete=lambda *_: MULTIPLIERS.keys(),
+)
 def prune(count: int, unit: str):
     """Unlink and remove files larger than provided size."""
     if count < 1:
@@ -71,16 +83,22 @@ def clean(verbose: bool):
     tmp_filepath = SONG_REGISTRY_FILENAME + ".temp"
     linked_filenames = set()
     known_songs = set()
-    with open(tmp_filepath, "w", encoding="utf8") as wfile:
-        with open(SONG_REGISTRY_FILENAME, "r", encoding="utf8") as rfile:
-            for line in rfile:
-                song_info = SongInfo.from_line(line)
-                if isfile(AUDIO_FOLDER + song_info.filename):
-                    linked_filenames.add(song_info.filename)
-                    known_songs.add(song_info.key)
-                    wfile.write(line)
-                elif verbose:
-                    click.echo(f"Unlinked {song_info.key} as no file is found.")
+    with (
+        open(tmp_filepath, "w", encoding=FILE_ENCODING) as wfile,
+        open_song_registry(SONG_REGISTRY_FILENAME) as song_registry,
+    ):
+        writer = csv.writer(wfile, dialect=SongCSVDialect)
+        header_written = False
+        for song_info in song_registry:
+            if isfile(AUDIO_FOLDER + song_info.filename):
+                linked_filenames.add(song_info.filename)
+                known_songs.add(song_info.key)
+                if not header_written:
+                    writer.writerow(asdict(song_info).keys())
+                    header_written = True
+                writer.writerow(astuple(song_info))
+            elif verbose:
+                click.echo(f"Unlinked {song_info.key} as no file is found.")
 
     replace(tmp_filepath, SONG_REGISTRY_FILENAME)
 
@@ -116,38 +134,63 @@ def normalize(verbose: bool, keep_file: bool, force: bool):
         output_format="opus",
     )
 
-    with open(SONG_REGISTRY_FILENAME, "r", encoding="utf8") as old_song_file:
-        registry_filename, _ = splitext(SONG_REGISTRY_FILENAME)
-        new_registry_filename = registry_filename + "_norm.txt"
-        with open(new_registry_filename, "w", encoding="utf8") as new_song_file:
-            for line in old_song_file:
-                info = SongInfo.from_line(line)
-                try:
-                    if info.ext != normalization_config.output_format or force:
-                        normalize_song(info, normalization_config, keep_file)
-                except Exception as e:
-                    print(e)
-                new_song_file.write(info.to_line())
-                new_song_file.write("\n")
+    registry_filename, _ = splitext(SONG_REGISTRY_FILENAME)
+    new_registry_filename = registry_filename + "_norm.csv"
+    with (
+        open_song_registry(SONG_REGISTRY_FILENAME) as song_registry,
+        open(new_registry_filename, "w", encoding=FILE_ENCODING) as new_song_file,
+    ):
+        writer = csv.writer(new_song_file, dialect=SongCSVDialect)
+        header_written = False
+        for song_info in song_registry:
+            try:
+                if song_info.ext != normalization_config.output_format or force:
+                    normalize_song(song_info, normalization_config, keep_file)
+            except Exception as e:
+                print(e)
+
+            if not header_written:
+                writer.writerow(asdict(song_info).keys())
+
+            writer.writerow(astuple(song_info))
 
     if not keep_file:
         replace(new_registry_filename, SONG_REGISTRY_FILENAME)
+
+
+@cli.command()
+@click.argument(
+    "version",
+    type=str,
+    shell_complete=lambda *_: MIGRATIONS.keys(),
+)
+@click.option("--keep-files", is_flag=True, help="Keep old files for extra safety.")
+def migrate(version: str, keep_files: bool):
+    migration_procedure = MIGRATIONS.get(version)
+    if not migration_procedure:
+        print("Unknown migration version. Must be one of ", MIGRATIONS.keys())
+        return
+
+    files_to_remove = migration_procedure()
+    if not keep_files:
+        for filename in files_to_remove:
+            remove(filename)
+
+    print("Migration", version, "=>", BOT_VERSION, "complete")
 
 
 def _gather_songs_larger_than(min_size: int) -> Tuple[Set[SongKey], List[str], int]:
     """
     Gather filenames linked via song registry for files that are more than provided byte count.
 
-    Returns set of song keys that should be removed,
-    list of files that are associated with provided songs
-    and the total file size.
+    Returns set of song keys that should be removed, list of files that are
+    associated with provided songs and the total file size.
     """
     songs_to_remove = set()
     files_to_remove = []
     bytes_removed = 0
-    with open(SONG_REGISTRY_FILENAME, "r", encoding="utf8") as file:
-        for line in file:
-            song_info = SongInfo.from_line(line)
+    with open_song_registry(SONG_REGISTRY_FILENAME) as song_registry:
+        for song_info in song_registry:
             filepath = AUDIO_FOLDER + song_info.filename
             file_size = stat(filepath).st_size
             if file_size >= min_size:
@@ -160,16 +203,27 @@ def _gather_songs_larger_than(min_size: int) -> Tuple[Set[SongKey], List[str], i
 
 def _unlink_songs_in(filepath: str, predicate: Callable[[SongKey], bool], verbose: bool = False):
     tmp_filename = filepath + ".temp"
-    with open(tmp_filename, "w", encoding="utf8") as wfile:
-        with open(filepath, "r", encoding="utf8") as rfile:
-            for line in rfile:
-                key = cast(SongKey, tuple(line.strip().split(maxsplit=2)[:2]))
-                if predicate(key):
-                    # unlinking happens by not writing the line to the new file
-                    if verbose:
-                        click.echo(f"Unlinked {key} from {filepath}.")
-                else:
-                    wfile.write(line)
+    with (
+        open(filepath, "r", encoding=FILE_ENCODING) as rfile,
+        open(tmp_filename, "w", encoding=FILE_ENCODING) as wfile,
+    ):
+        reader = csv.reader(rfile, dialect=SongCSVDialect)
+        header_row = next(reader)
+
+        assert list(header_row[:2]) == ["domain", "id"], "Unable to unlink non-csv files"
+
+        writer = csv.writer(wfile, dialect=SongCSVDialect)
+        writer.writerow(header_row)
+
+        for row in reader:
+            key = row[0], row[1]
+            if predicate(key):
+                # unlinking happens by not writing the line to the new file
+                if verbose:
+                    click.echo(f"Unlinked {key} from {filepath}.")
+            else:
+                writer.writerow(row)
+
     replace(tmp_filename, filepath)
 
 

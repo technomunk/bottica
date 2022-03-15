@@ -45,7 +45,7 @@ class MusicContext:
         registry: SongRegistry,
     ):
         self._guild = guild
-        self._song_set = SongSet(registry, f"{GUILD_SET_FOLDER}{self._guild.id}.txt")
+        self._song_set = SongSet(registry, f"{GUILD_SET_FOLDER}{self._guild.id}.csv")
 
         self._select_queue = SongQueue(registry)
         self._history_queue = SongQueue(registry)
