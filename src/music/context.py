@@ -40,7 +40,7 @@ class MusicContext(Persist):
         client: discord.Client,
         guild: discord.Guild,
         text_channel: discord.TextChannel,
-        voice_client: discord.VoiceClient,
+        voice_client: Optional[discord.VoiceClient],
         registry: SongRegistry,
     ):
         super().__init__()
@@ -63,9 +63,10 @@ class MusicContext(Persist):
         if self._select_mode != SongSelectMode.QUEUE:
             self._update_select_mode(self._select_mode)
 
-        if text_channel is not None or voice_client is not None:
+        if text_channel is not None:
             self.text_channel = text_channel
-            self._voice_channel = self._voice_client.channel
+        if voice_client is not None:
+            self._voice_channel = voice_client.channel
 
     @classmethod
     async def resume(
