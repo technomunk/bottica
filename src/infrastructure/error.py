@@ -48,6 +48,7 @@ def atask(coroutine: Coroutine, ctx: Optional[cmd.Context] = None):
 
 
 async def handle_command_error(ctx: cmd.Context, error: cmd.CommandError):
+    _logger.exception(error, stacklevel=2)
     atask(ctx.message.remove_reaction(REACTIONS["command_succeeded"], ctx.me))
     atask(ctx.message.add_reaction(REACTIONS["command_failed"]))
 
