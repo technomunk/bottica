@@ -6,25 +6,11 @@ from __future__ import annotations
 
 import json
 import logging
-from inspect import get_annotations, isawaitable, iscoroutine
 from os import path
-from typing import (
-    Any,
-    Callable,
-    ClassVar,
-    Dict,
-    Generic,
-    List,
-    Optional,
-    Type,
-    TypeVar,
-    cast,
-    overload,
-)
-
-from .converters import identity
+from typing import Any, Callable, ClassVar, Generic, List, Optional, Type, TypeVar, cast, overload
 
 VarT = TypeVar("VarT")
+SerialT = TypeVar("SerialT")
 ClassT = TypeVar("ClassT", bound=object)
 _logger = logging.getLogger(__name__)
 
@@ -33,15 +19,30 @@ class _Missing:
     """Helper marker for undefined default parameter."""
 
 
+class Converter(Generic[VarT]):
+    """Convert data to and from form that is saved to file."""
+
+    def to_serial(self, value: VarT, **kwargs) -> Any:
+        return value
+
+    async def from_serial(self, value: Any, **kwargs) -> VarT:
+        return value
+
+
 class Persist:
-    """A persistable object that can save persist.Field values."""
+    """
+    A persistable object that can save persist.Field values.
+
+    Should be the base class of any class that defines Fields for the persistence mechanism to work.
+    """
 
     _persist_fields: ClassVar[List[Field]] = []
+    _persist_values: dict
 
     def __init__(self) -> None:
-        self._persist_values: dict = {}
+        self._persist_values = {}
 
-    def save(self, filename: str, converters: Dict[Type, Callable[[Any], Any]] = {}) -> None:
+    def save(self, filename: str, **converter_kwargs) -> None:
         """
         Save all _persist_fields to provided file.
 
@@ -50,13 +51,14 @@ class Persist:
         marshalled_data = {}
         for field in self._persist_fields:
             value = getattr(self, field.name)
-            converter = converters.get(type(value), identity)
-            marshalled_data[field.name] = converter(value)
+            marshalled_data[field.name] = field.converter.to_serial(value, **converter_kwargs)
 
         with open(filename, "w") as json_file:
             json.dump(marshalled_data, json_file)
 
-    async def load(self, filename: str, converters: Dict[Type, Callable[[Any], Any]] = {}) -> None:
+        _logger.debug("saved %s", filename)
+
+    async def load(self, filename: str, **converter_kwargs) -> None:
         """
         Load as many _persist_fields from provided file as possible.
 
@@ -69,11 +71,8 @@ class Persist:
 
         for field in self._persist_fields:
             if field.name in marshalled_data:
-                converter = converters.get(field.type, field.type)
-                value = converter(marshalled_data[field.name])
-
-                if isawaitable(value):
-                    value = await value
+                value = marshalled_data[field.name]
+                value = await field.converter.from_serial(value, **converter_kwargs)
                 setattr(self, field.name, value)
             elif field.default:
                 setattr(self, field.name, field.default())
@@ -84,27 +83,25 @@ class Field(Generic[VarT]):
     An descriptor for a class field that is in reality a member of a dictionary.
     """
 
-    __slots__ = "name", "type", "default"
+    __slots__ = "name", "default", "converter"
 
     def __init__(
         self,
         default: VarT | _Missing = _Missing(),
         *,
         default_factory: Optional[Callable[[], VarT]] = None,
-        type_: Type[VarT] | _Missing = _Missing(),
+        converter: Converter[VarT] = Converter(),
     ) -> None:
-        self.type: Type[VarT] = type_  # type: ignore
         if isinstance(default, _Missing):
             self.default: Optional[Callable[[], VarT]] = default_factory
         elif default_factory is not None:
             raise ValueError("cannot specify both default and default_factory")
         else:
             self.default = lambda: cast(VarT, default)
-            if isinstance(type_, _Missing):
-                self.type = type(default)
+        self.converter = converter
 
     def __set_name__(self, owner: Type[Persist], name: str) -> None:
-        owner._persist_fields.append(self)
+        owner._persist_fields.append(self)  # type: ignore
         self.name = name
 
     @overload
@@ -129,19 +126,3 @@ class Field(Generic[VarT]):
 
     def __set__(self, instance: Persist, value: VarT):
         instance._persist_values[self.name] = value
-
-
-def infer_field_types(cls: Type[Persist]) -> Type[Persist]:
-    cls_annotations = get_annotations(cls, eval_str=True)
-
-    for field in cls._persist_fields:
-        if field.name in cls_annotations:
-            field.type = cls_annotations[field.name]
-            # make sure explicitly marked fields get correct type hint
-            if vars(field.type).get("__origin__") == Field:
-                field.type = vars(field.type)["__args__"][0]
-        elif isinstance(field.type, _Missing):
-            if field.name not in cls_annotations:
-                raise TypeError("field is missing type info", field.name)
-
-    return cls

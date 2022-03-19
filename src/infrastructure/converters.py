@@ -1,72 +1,73 @@
+import enum
 import logging
-from abc import ABC
-from functools import partial
-from inspect import isawaitable
-from lib2to3.pgen2.token import OP
-from typing import Any, Callable, Dict, Literal, Optional, Tuple, Type, TypeVar, overload
+import typing
+from typing import Any, Tuple, Type, TypeVar
 
 import discord
 
-from infrastructure.sticky_message import StickyMessage
+from infrastructure.persist import Converter
+from infrastructure.sticky_message import StickyMessage as StickyMessageCls
 
-T = TypeVar("T")
+VarT = TypeVar("VarT")
+ChannelT = TypeVar("ChannelT", discord.TextChannel, discord.VoiceChannel)
+EnumT = TypeVar("EnumT", bound=enum.Enum)
 _logger = logging.getLogger(__name__)
 
 
-class _HasId(ABC):
-    id: int
+class Optional(Converter[typing.Optional[VarT]]):
+    def __init__(self, base: Converter[VarT] = Converter()) -> None:
+        self.base = base
+
+    def to_serial(self, value: typing.Optional[VarT], **kwargs) -> Any:
+        if value is None:
+            return None
+        return self.base.to_serial(value, **kwargs)
+
+    async def from_serial(self, value: Any, **kwargs) -> typing.Optional[VarT]:
+        if value is None:
+            return None
+        return await self.base.from_serial(value, **kwargs)
 
 
-class _HasTextChannel(ABC):
-    text_channel: discord.TextChannel
+class Enum(Converter[EnumT]):
+    def __init__(self, enum_type: Type[EnumT]) -> None:
+        self.enum_type = enum_type
+
+    def to_serial(self, value: EnumT, **kwargs) -> Any:
+        return value.value
+
+    async def from_serial(self, value: Any, **kwargs) -> EnumT:
+        return self.enum_type(value)
 
 
-def get_id(has_id: _HasId) -> int:
-    return has_id.id
+class DiscordChannel(Converter[ChannelT]):
+    def __init__(self, _type_hint: Optional[Type[ChannelT]] = None) -> None:
+        pass
+
+    def to_serial(self, value: ChannelT, **kwargs) -> int:
+        return value.id
+
+    async def from_serial(self, value: int, **kwargs) -> ChannelT:
+        client: discord.Client = kwargs["client"]
+        return client.get_channel(value)
 
 
-def get_voice_client_id(voice_client: discord.VoiceClient) -> int:
-    return voice_client.channel.id
+class DiscordVoiceClient(Converter[discord.VoiceClient]):
+    def to_serial(self, value: discord.VoiceClient, **kwargs) -> int:
+        return value.channel.id
+
+    async def from_serial(self, value: int, **kwargs) -> discord.VoiceClient:
+        client: discord.Client = kwargs["client"]
+        channel: discord.VoiceChannel = client.get_channel(value)
+        return await channel.connect()
 
 
-def identity(value: T) -> T:
-    return value
+class StickyMessage(Converter[StickyMessageCls]):
+    def to_serial(self, value: StickyMessageCls, **kwargs) -> Tuple[int, int]:
+        return value.channel.id, value.id
 
-
-SAVE_CONVERTERS: Dict[Type, Callable[[Any], Any]] = {
-    discord.TextChannel: get_id,
-    discord.VoiceClient: get_voice_client_id,
-    StickyMessage: get_id,
-}
-
-
-def load_converters(
-    client: discord.Client,
-    has_text_channel: _HasTextChannel,
-) -> Dict[Type | object, Callable[[Any], Any]]:
-    return {
-        discord.TextChannel: partial(discord.Client.get_channel, client),
-        Optional[discord.VoiceClient]: partial(_fetch_voice_client, client),
-        Optional[StickyMessage]: partial(_fetch_sticky_message, has_text_channel),
-    }
-
-
-async def _fetch_voice_client(
-    client: discord.Client, id: Optional[int]
-) -> Optional[discord.VoiceClient]:
-    channel: Optional[discord.VoiceChannel] = client.get_channel(id)
-    if channel is None:
-        return None
-    return await channel.connect()
-
-
-async def _fetch_sticky_message(
-    has_text_channel: _HasTextChannel,
-    id: Optional[int],
-) -> Optional[StickyMessage]:
-    if id is None:
-        return None
-    message: Optional[discord.Message] = await has_text_channel.text_channel.fetch_message(id)
-    if message is None:
-        return None
-    return StickyMessage(message)
+    async def from_serial(self, value: Tuple[int, int], **kwargs) -> StickyMessageCls:
+        client: discord.Client = kwargs["client"]
+        channel: discord.TextChannel = client.get_channel(value[0])
+        message: discord.Message = await channel.fetch_message(value[1])
+        return StickyMessageCls(message)
