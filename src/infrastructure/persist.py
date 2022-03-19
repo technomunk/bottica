@@ -6,11 +6,26 @@ from __future__ import annotations
 
 import json
 import logging
-from abc import ABCMeta, abstractmethod
-from os.path import isfile
-from typing import Any, Callable, Generic, Optional, Type, TypeVar, cast, overload
+from inspect import get_annotations, isawaitable, iscoroutine
+from os import path
+from typing import (
+    Any,
+    Callable,
+    ClassVar,
+    Dict,
+    Generic,
+    List,
+    Optional,
+    Type,
+    TypeVar,
+    cast,
+    overload,
+)
+
+from .converters import identity
 
 VarT = TypeVar("VarT")
+ClassT = TypeVar("ClassT", bound=object)
 _logger = logging.getLogger(__name__)
 
 
@@ -19,111 +34,114 @@ class _Missing:
 
 
 class Persist:
-    """Base class which may house PersistedVariables"""
+    """A persistable object that can save persist.Field values."""
 
-    __metaclass__ = ABCMeta
+    _persist_fields: ClassVar[List[Field]] = []
 
     def __init__(self) -> None:
-        self._persisted_vars: dict = {}
-        self.save_on_update: bool = True
+        self._persist_values: dict = {}
 
-    @property
-    @abstractmethod
-    def filename(self) -> str:
-        ...
-
-    def save(self):
-        with open(self.filename, "w") as file:
-            json.dump(self._persisted_vars, file)
-
-    def load(self):
-        if isfile(self.filename):
-            with open(self.filename, "r") as file:
-                self._persisted_vars = json.load(file)
-
-    def _update(self):
-        if self.save_on_update:
-            self.save()
-
-
-class Serializer(Generic[VarT]):
-    """Basic interface for converting a complex type to something that is JSON-serializeable."""
-
-    def finalize(self, **kwargs):
+    def save(self, filename: str, converters: Dict[Type, Callable[[Any], Any]] = {}) -> None:
         """
-        More complex serializers may require extra metadata and thus the Persist
-        derivate may invoke finalize() before from_json() is ever called
+        Save all _persist_fields to provided file.
+
+        Provided converters will be invoked for each field value that is of the relevant type.
         """
+        marshalled_data = {}
+        for field in self._persist_fields:
+            value = getattr(self, field.name)
+            converter = converters.get(type(value), identity)
+            marshalled_data[field.name] = converter(value)
 
-    def to_json(self, variable: VarT) -> Any:
-        """Return something that is hopefully serializeable."""
-        return variable
+        with open(filename, "w") as json_file:
+            json.dump(marshalled_data, json_file)
 
-    def from_json(self, variable: Any) -> VarT:
-        """Perform the reverse of marshal operation."""
-        return variable
+    async def load(self, filename: str, converters: Dict[Type, Callable[[Any], Any]] = {}) -> None:
+        """
+        Load as many _persist_fields from provided file as possible.
+
+        Provided converters will be invoked for each field of relevant type.
+        """
+        marshalled_data = {}
+        if path.isfile(filename):
+            with open(filename, "r") as json_file:
+                marshalled_data = json.load(json_file)
+
+        for field in self._persist_fields:
+            if field.name in marshalled_data:
+                converter = converters.get(field.type, field.type)
+                value = converter(marshalled_data[field.name])
+
+                if isawaitable(value):
+                    value = await value
+                setattr(self, field.name, value)
+            elif field.default:
+                setattr(self, field.name, field.default())
 
 
-class PersistedVar(Generic[VarT]):
+class Field(Generic[VarT]):
     """
     An descriptor for a class field that is in reality a member of a dictionary.
     """
 
+    __slots__ = "name", "type", "default"
+
     def __init__(
         self,
-        default_value: VarT | _Missing = _Missing(),
+        default: VarT | _Missing = _Missing(),
         *,
         default_factory: Optional[Callable[[], VarT]] = None,
-        serializer: Serializer[VarT] = Serializer(),  # type: ignore
+        type_: Type[VarT] | _Missing = _Missing(),
     ) -> None:
-        if default_factory is not None:
+        self.type: Type[VarT] = type_  # type: ignore
+        if isinstance(default, _Missing):
             self.default: Optional[Callable[[], VarT]] = default_factory
-        elif isinstance(default_value, _Missing):
-            self.default = None
+        elif default_factory is not None:
+            raise ValueError("cannot specify both default and default_factory")
         else:
-            self.default = lambda: cast(VarT, default_value)
+            self.default = lambda: cast(VarT, default)
+            if isinstance(type_, _Missing):
+                self.type = type(default)
 
-        self.serializer = serializer
+    def __set_name__(self, owner: Type[Persist], name: str) -> None:
+        owner._persist_fields.append(self)
+        self.name = name
 
-    def __set_name__(self, owner: Type[Persist], name: str):
-        if not issubclass(owner, Persist):
-            raise TypeError("PersistVar has to be a class-variable of a Persist-derived class")
-
-        self._name = name
+    @overload
+    def __get__(self, instance: None, owner: Type[Persist]) -> Field[VarT]:
+        ...
 
     @overload
     def __get__(self, instance: Persist, owner: Optional[Type[Persist]]) -> VarT:
-        pass
-
-    @overload
-    def __get__(self, instance: None, owner: None) -> PersistedVar[VarT]:
-        pass
-
-    @overload
-    def __get__(self, instance: None, owner: Type[Persist]) -> PersistedVar[VarT]:
-        pass
+        ...
 
     def __get__(
         self,
         instance: Optional[Persist],
         owner: Optional[Type[Persist]] = None,
-    ) -> VarT | PersistedVar[VarT]:
-        # Allow class-level access to the descriptor for further modification
+    ) -> VarT | Field[VarT]:
         if instance is None:
             return self
 
-        if self.default is not None and self._name not in instance._persisted_vars:
-            instance._persisted_vars[self._name] = self.serializer.to_json(self.default())
-        return self.serializer.from_json(instance._persisted_vars[self._name])
+        if self.name not in instance._persist_values and self.default:
+            instance._persist_values[self.name] = self.default()
+        return instance._persist_values[self.name]
 
     def __set__(self, instance: Persist, value: VarT):
-        new_value = self.serializer.to_json(value)
-        if (
-            self._name not in instance._persisted_vars
-            or instance._persisted_vars[self._name] != new_value
-        ):
-            instance._persisted_vars[self._name] = new_value
-            instance._update()
+        instance._persist_values[self.name] = value
 
-    def __delete__(self, instance: Persist):
-        del instance._persisted_vars[self._name]
+
+def infer_field_types(cls: Type[Persist]) -> Type[Persist]:
+    cls_annotations = get_annotations(cls, eval_str=True)
+
+    for field in cls._persist_fields:
+        if field.name in cls_annotations:
+            field.type = cls_annotations[field.name]
+            # make sure explicitly marked fields get correct type hint
+            if vars(field.type).get("__origin__") == Field:
+                field.type = vars(field.type)["__args__"][0]
+        elif isinstance(field.type, _Missing):
+            if field.name not in cls_annotations:
+                raise TypeError("field is missing type info", field.name)
+
+    return cls

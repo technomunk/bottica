@@ -6,9 +6,9 @@ from typing import Optional
 
 import discord
 
+from infrastructure.converters import SAVE_CONVERTERS, load_converters
 from infrastructure.error import atask
-from infrastructure.persist import Persist, PersistedVar
-from infrastructure.serializers import DiscordChannelSerializer, EnumSerializer, OptionalSerializer
+from infrastructure.persist import Field, Persist, infer_field_types
 from infrastructure.sticky_message import StickyMessage
 from infrastructure.util import format_duration, has_listening_members
 
@@ -25,15 +25,16 @@ class SongSelectMode(enum.Enum):
     RADIO = "radio"
 
 
+SAVE_CONVERTERS[SongSelectMode] = lambda ssm: ssm.value
+
+
+@infer_field_types
 class MusicContext(Persist):
-    _select_mode = PersistedVar(SongSelectMode.QUEUE, serializer=EnumSerializer(SongSelectMode))
-    min_repeat_interval = PersistedVar(32)
-    text_channel = PersistedVar(serializer=DiscordChannelSerializer(discord.TextChannel))
-    _song_message_id = PersistedVar(0)
-    _voice_channel = PersistedVar(
-        None,
-        serializer=OptionalSerializer(DiscordChannelSerializer(discord.VoiceChannel)),
-    )
+    _select_mode = Field(SongSelectMode.QUEUE)
+    min_repeat_interval = Field(32)
+    text_channel: Field[discord.TextChannel] = Field()
+    _voice_client: Field[Optional[discord.VoiceClient]] = Field(None)
+    song_message: Field[Optional[StickyMessage]] = Field(None)
 
     def __init__(
         self,
@@ -51,22 +52,12 @@ class MusicContext(Persist):
         self._select_queue = SongQueue(registry)
         self._history_queue = SongQueue(registry)
 
-        self._song_message: Optional[StickyMessage] = None
-
-        # Make sure the more complex serializers are useable
-        type(self).text_channel.serializer.finalize(client=client)
-        type(self)._voice_channel.serializer.finalize(client=client)
-
-        self.load()
-
         self._voice_client = voice_client
         if self._select_mode != SongSelectMode.QUEUE:
             self._update_select_mode(self._select_mode)
 
         if text_channel is not None:
             self.text_channel = text_channel
-        if voice_client is not None:
-            self._voice_channel = voice_client.channel
 
     @classmethod
     async def resume(
@@ -77,28 +68,25 @@ class MusicContext(Persist):
     ) -> MusicContext:
         mctx = cls(client, guild, None, None, registry)
 
-        if mctx._song_message_id:
-            await mctx.fetch_song_message()
+        await mctx.load(mctx.filename, load_converters(client, mctx))  # type: ignore
+        mctx._update_select_mode(mctx._select_mode)
 
-        if mctx._voice_channel is not None:
-            mctx._voice_client = await mctx._voice_channel.connect()
+        if mctx._voice_client is not None:
             _logger.debug("resuming playback")
             mctx.play_next()
-        else:
-            mctx._song_message_id = 0
 
         return mctx
 
-    def clear(self):
+    def clear(self) -> None:
         """Reset context to a clean state ready for a new play attempt."""
-        self.save_on_update = False
         self._select_queue.clear()
         self._history_queue.clear()
-        self._song_message = None
+        if self.song_message is not None:
+            self.song_message.delete()
+        self.song_message = None
         self._select_mode = SongSelectMode.QUEUE
         self.disconnect()
-        self.save_on_update = True
-        self.save()
+        self.save(self.filename, SAVE_CONVERTERS)
 
     @property
     def filename(self) -> str:
@@ -112,56 +100,47 @@ class MusicContext(Persist):
 
     async def join_or_throw(self, channel: discord.VoiceChannel):
         """Join provided voice channel or throw a relevant exception."""
-        if self.is_playing() and self.voice_client.channel != channel:  # type: ignore
+        if self.is_playing() and self._voice_client.channel != channel:  # type: ignore
             raise AuthorNotInPlayingChannel()
 
         if self._voice_client is None:
             self._voice_client = await channel.connect()
         else:
             await self._voice_client.move_to(channel)
-        self._voice_channel = self._voice_client.channel
 
     def disconnect(self):
         if self._voice_client is not None:
             self._voice_client.stop()
             atask(self._voice_client.disconnect())
             self._voice_client = None
-            self._voice_channel = None
 
     async def display_current_song_info(
         self,
         sticky: bool,
         channel: Optional[discord.TextChannel] = None,
     ):
-        song_message = await self.fetch_song_message()
-
         if channel is not None:
             self.text_channel = channel
 
         song = self.song_queue.head
         if song is None:
-            if song_message is not None:
-                song_message.delete()
-
-            self._song_message = None
-            self._song_message_id = 0
+            if self.song_message is not None:
+                self.song_message.delete()
+                self.song_message = None
             return
 
         embed = discord.Embed(description=f"{song.pretty_link} <> {format_duration(song.duration)}")
 
         if sticky:
-            if song_message is None:
-                self._song_message = await StickyMessage.send(self.text_channel, embed=embed)
-                self._song_message.id_update_callback = lambda: self._update_song_id()
+            if self.song_message is None:
+                self.song_message = await StickyMessage.send(self.text_channel, embed=embed)
             else:
-                await song_message.update(embed=embed)
+                await self.song_message.update(embed=embed)
         else:
-            if song_message is not None:
-                song_message.delete()
-                self._song_message = None
+            if self.song_message is not None:
+                self.song_message.delete()
+                self.song_message = None
             atask(self.text_channel.send(embed=embed))
-
-        self._update_song_id()
 
     def play_next(self) -> None:
         """
@@ -177,8 +156,8 @@ class MusicContext(Persist):
         if not has_listening_members(self._voice_client.channel):
             # skip playback. It will be attempted again in Cog.on_voice_state_update()
             _logger.debug("playback skipped due to no active members")
-            if self._song_message is not None:
-                atask(self._song_message.update(embed=discord.Embed(description="...")))
+            if self.song_message is not None:
+                atask(self.song_message.update(embed=discord.Embed(description="...")))
             return
 
         song = self.select_next()
@@ -187,8 +166,9 @@ class MusicContext(Persist):
             # clean up after automatic playback
             if self.is_playing():
                 self._voice_client.stop()
-            if self._song_message:
-                self._song_message.delete()
+            if self.song_message is not None:
+                self.song_message.delete()
+                self.song_message = None
             return
 
         if self.is_playing():
@@ -207,10 +187,9 @@ class MusicContext(Persist):
             if len(self._select_queue) > 1:
                 self.play_next()
             else:
-                if self._song_message is not None:
-                    self._song_message.delete()
-                    self._song_message = None
-                    self._update_song_id()
+                if self.song_message is not None:
+                    self.song_message.delete()
+                    self.song_message = None
                 self._select_queue.clear()
                 self.disconnect()
 
@@ -219,7 +198,7 @@ class MusicContext(Persist):
             discord.FFmpegPCMAudio(f"{AUDIO_FOLDER}{song.filename}", options="-vn"),
             after=handle_after,
         )
-        if self._song_message:
+        if self.song_message is not None:
             atask(self.display_current_song_info(True))
 
     def select_next(self) -> Optional[SongInfo]:
@@ -282,26 +261,3 @@ class MusicContext(Persist):
     @property
     def is_radio(self) -> bool:
         return self._select_mode == SongSelectMode.RADIO
-
-    async def fetch_song_message(self) -> Optional[StickyMessage]:
-        if self._song_message:
-            return self._song_message
-
-        if self.text_channel and self._song_message_id:
-            message = await self.text_channel.fetch_message(self._song_message_id)
-            if message:
-                self._song_message = StickyMessage(message, lambda: self._update())
-            else:
-                self._song_message = None
-
-        if self._song_message is None:
-            self._song_message_id = 0
-
-        return self._song_message
-
-    @property
-    def voice_client(self) -> Optional[discord.VoiceClient]:
-        return self._voice_client
-
-    def _update_song_id(self):
-        self._song_message_id = self._song_message.id if self._song_message else 0

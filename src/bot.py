@@ -14,7 +14,7 @@ from discord.mentions import AllowedMentions
 
 from commands import register_commands
 from infrastructure.error import atask, event_loop, handle_command_error
-from music.cog import MusicCog
+from music.cog import Music
 from response import JEALOUS, REACTIONS
 from sass import make_sass, should_sass
 
@@ -22,13 +22,23 @@ intents = discord.Intents.default()
 intents.typing = False
 intents.presences = False
 intents.members = True
-bot = DiscordBot(
+_logger = logging.getLogger(__name__)
+
+
+class Bottica(DiscordBot):
+    async def close(self) -> None:
+        for cog in self.cogs.values():
+            if closer := getattr(cog, "close"):
+                await closer()
+        await super().close()
+
+
+bot = Bottica(
     cmd.when_mentioned_or("b."),
     loop=event_loop,
     intents=intents,
     allowed_mentions=AllowedMentions(users=True),
 )
-_logger = logging.getLogger(__name__)
 
 
 @bot.event
@@ -123,7 +133,7 @@ def run_bot():
 
     # set up logging
     log_level = args.log or config.get("log") or logging.INFO
-    _logger.debug("set logging level to %s", log_level)
+    print("set logging level to", log_level)
     logging.basicConfig(
         format="%(asctime)s:%(levelname)s:%(name)s:%(funcName)s: %(message)s",
         level=log_level,
@@ -132,7 +142,7 @@ def run_bot():
 
     bot.status_reporters = []
     register_commands(bot)
-    bot.add_cog(MusicCog(bot))
+    bot.add_cog(Music(bot))
 
     bot.on_command_error = handle_command_error
     bot.run(args.discord_token or config["discord_token"])

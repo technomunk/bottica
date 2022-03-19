@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable, Optional
+from typing import Callable, Optional, Tuple
 
 import discord
 
@@ -13,9 +13,8 @@ class StickyMessage:
     If a message is not the freshes in a channel after an update it will be resent.
     """
 
-    def __init__(self, message: discord.Message, id_update_callback: Optional[Callable] = None):
+    def __init__(self, message: discord.message):
         self._message = message
-        self.id_update_callback = id_update_callback
 
     @classmethod
     async def send(cls, channel: discord.abc.Messageable, content=None, **kwargs) -> StickyMessage:
@@ -29,8 +28,6 @@ class StickyMessage:
         if history[0] != self._message:
             atask(self._message.delete())
             self._message = await channel.send(content, **kwargs)
-            if self.id_update_callback:
-                self.id_update_callback()
         else:
             atask(self._message.edit(content=content, **kwargs))
 
@@ -40,3 +37,7 @@ class StickyMessage:
     @property
     def id(self) -> int:
         return self._message.id
+
+    @property
+    def channel(self) -> discord.TextChannel:
+        return self._message.channel

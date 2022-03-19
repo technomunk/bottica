@@ -9,6 +9,7 @@ import discord
 import discord.ext.commands as cmd
 
 import response
+from infrastructure.converters import SAVE_CONVERTERS
 from infrastructure.error import atask
 from infrastructure.util import format_duration, has_listening_members, is_listening
 from music import check
@@ -24,7 +25,7 @@ ALLOWED_INFO_TYPES = ("video", "url")
 _logger = logging.getLogger(__name__)
 
 
-class MusicCog(cmd.Cog, name="Music"):  # type: ignore
+class Music(cmd.Cog):  # type: ignore
     def __init__(self, bot: cmd.Bot) -> None:
         self.bot = bot
         self.loader = Downloader(bot.loop)
@@ -64,6 +65,10 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
             len(self.contexts),
         )
 
+    async def close(self):
+        for mctx in self.contexts.values():
+            mctx.save(mctx.filename, SAVE_CONVERTERS)
+
     @cmd.Cog.listener()
     async def on_voice_state_update(
         self,
@@ -74,18 +79,18 @@ class MusicCog(cmd.Cog, name="Music"):  # type: ignore
         guild_id = after.channel.guild.id if after.channel is not None else before.channel.guild.id
 
         mctx = self.contexts.get(guild_id)
-        if mctx is None or mctx.voice_client is None:
+        if mctx is None or mctx._voice_client is None:
             return
 
         if member == self.bot.user:
-            mctx._voice_channel = None if mctx.voice_client is None else mctx.voice_client.channel
+            mctx._voice_channel = None if mctx._voice_client is None else mctx._voice_client.channel
             return
 
         # check that a real user connected to a channel
         if not is_listening(member) or after.channel is None:
             return
 
-        if after.channel == mctx.voice_client.channel:
+        if after.channel == mctx._voice_client.channel:
             if (
                 not mctx.is_playing()
                 and not mctx.is_paused()
