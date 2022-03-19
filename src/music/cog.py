@@ -9,7 +9,6 @@ import discord
 import discord.ext.commands as cmd
 
 import response
-from infrastructure.converters import SAVE_CONVERTERS
 from infrastructure.error import atask
 from infrastructure.util import format_duration, has_listening_members, is_listening
 from music import check
@@ -36,13 +35,7 @@ class Music(cmd.Cog):  # type: ignore
 
     def get_music_context(self, ctx: cmd.Context) -> MusicContext:
         if ctx.guild.id not in self.contexts:
-            mctx = MusicContext(
-                self.bot,
-                ctx.guild,
-                ctx.channel,
-                ctx.voice_client,
-                self.song_registry,
-            )
+            mctx = MusicContext(ctx.guild, ctx.channel, ctx.voice_client, self.song_registry)
             self.contexts[ctx.guild.id] = mctx
         return self.contexts[ctx.guild.id]
 
@@ -67,7 +60,7 @@ class Music(cmd.Cog):  # type: ignore
 
     async def close(self):
         for mctx in self.contexts.values():
-            mctx.save(mctx.filename, SAVE_CONVERTERS)
+            mctx.save(mctx.filename)
 
     @cmd.Cog.listener()
     async def on_voice_state_update(
@@ -83,7 +76,6 @@ class Music(cmd.Cog):  # type: ignore
             return
 
         if member == self.bot.user:
-            mctx._voice_channel = None if mctx._voice_client is None else mctx._voice_client.channel
             return
 
         # check that a real user connected to a channel

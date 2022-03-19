@@ -6,9 +6,9 @@ from typing import Optional
 
 import discord
 
-from infrastructure.converters import SAVE_CONVERTERS, load_converters
+from infrastructure import converters
 from infrastructure.error import atask
-from infrastructure.persist import Field, Persist, infer_field_types
+from infrastructure.persist import Field, Persist
 from infrastructure.sticky_message import StickyMessage
 from infrastructure.util import format_duration, has_listening_members
 
@@ -25,20 +25,15 @@ class SongSelectMode(enum.Enum):
     RADIO = "radio"
 
 
-SAVE_CONVERTERS[SongSelectMode] = lambda ssm: ssm.value
-
-
-@infer_field_types
 class MusicContext(Persist):
-    _select_mode = Field(SongSelectMode.QUEUE)
+    _select_mode = Field(SongSelectMode.QUEUE, converter=converters.Enum(SongSelectMode))
     min_repeat_interval = Field(32)
-    text_channel: Field[discord.TextChannel] = Field()
-    _voice_client: Field[Optional[discord.VoiceClient]] = Field(None)
-    song_message: Field[Optional[StickyMessage]] = Field(None)
+    text_channel: Field[discord.TextChannel] = Field(converter=converters.DiscordChannel())
+    _voice_client = Field(None, converter=converters.Optional(converters.DiscordVoiceClient()))
+    song_message = Field(None, converter=converters.Optional(converters.StickyMessage()))
 
     def __init__(
         self,
-        client: discord.Client,
         guild: discord.Guild,
         text_channel: discord.TextChannel,
         voice_client: Optional[discord.VoiceClient],
@@ -66,9 +61,8 @@ class MusicContext(Persist):
         guild: discord.Guild,
         registry: SongRegistry,
     ) -> MusicContext:
-        mctx = cls(client, guild, None, None, registry)
-
-        await mctx.load(mctx.filename, load_converters(client, mctx))  # type: ignore
+        mctx = cls(guild, None, None, registry)
+        await mctx.load(mctx.filename, client=client)
         mctx._update_select_mode(mctx._select_mode)
 
         if mctx._voice_client is not None:
@@ -86,7 +80,7 @@ class MusicContext(Persist):
         self.song_message = None
         self._select_mode = SongSelectMode.QUEUE
         self.disconnect()
-        self.save(self.filename, SAVE_CONVERTERS)
+        self.save(self.filename)
 
     @property
     def filename(self) -> str:
