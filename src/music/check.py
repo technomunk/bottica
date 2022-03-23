@@ -1,3 +1,4 @@
+"""Command validity checking."""
 import logging
 
 import discord.ext.commands as cmd

@@ -28,7 +28,7 @@ async def status(ctx: cmd.Context):
 @cmd.command()
 async def rate(ctx: cmd.Context, user: discord.Member):
     """Rate the provided user out of 10."""
-    if user.id == 305440304528359424 or user == cmd.bot.user:
+    if user.id == 305440304528359424 or user == ctx.bot.user:
         rating = 10
     elif user.bot:
         rating = 0
@@ -40,10 +40,10 @@ async def rate(ctx: cmd.Context, user: discord.Member):
 
 
 @cmd.command()
-async def roll(ctx: cmd.Context, max: int = 100):
+async def roll(ctx: cmd.Context, max_: int = 100):
     """Select a random number up to provided value or 100."""
-    value = random.randint(1, max)
-    atask(ctx.reply(f"{value} / {max}"))
+    value = random.randint(1, max_)
+    atask(ctx.reply(f"{value} / {max_}"))
 
 
 @cmd.command()

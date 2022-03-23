@@ -1,3 +1,4 @@
+"""Human/user-friendly response wrapping of typical exceptions."""
 from typing import Callable, Dict, Type, Union
 
 from discord.ext.commands.errors import (
@@ -111,5 +112,4 @@ def make_user_friendly(error: CommandError) -> str:
     message = FRIENDLY_MESSAGES.get(type(error), "")
     if isinstance(message, str):
         return message.format(error=error)
-    else:
-        return message(error)
+    return message(error)

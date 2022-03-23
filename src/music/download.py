@@ -1,3 +1,4 @@
+"""Song data download utilities"""
 from asyncio import BaseEventLoop
 from logging import getLogger
 from typing import Tuple
@@ -21,6 +22,8 @@ _DEFAULT_CONFIG = {
 
 
 class Downloader:
+    # I know the config is not mutated by the method and I prefer non-optional arguments
+    # pylint: disable=dangerous-default-value
     def __init__(self, loop: BaseEventLoop, config: dict = _DEFAULT_CONFIG) -> None:
         self._loader = YoutubeDL(config)
         self.loop = loop
@@ -49,5 +52,5 @@ def extract_key(info: dict) -> Tuple[str, str]:
 
 
 def _extract_song_info(info: dict) -> SongInfo:
-    domain, id = extract_key(info)
-    return SongInfo(domain, id, info["ext"], info["duration"], info["title"])
+    domain, intradomain_id = extract_key(info)
+    return SongInfo(domain, intradomain_id, info["ext"], info["duration"], info["title"])

@@ -1,3 +1,4 @@
+"""Old SongInfo structure for migration-capability"""
 import csv
 from dataclasses import asdict, astuple
 
@@ -44,11 +45,11 @@ def convert_old_song_set(old_filename: str, new_filename: str):
 
 
 def _parse_old_song_line(line: str) -> SongInfo:
-    domain, id, ext, dur, title = line.strip().split(maxsplit=4)
+    domain, intradomain_id, ext, dur, title = line.strip().split(maxsplit=4)
     duration = int(dur)
-    return SongInfo(domain, id, ext, duration, title)
+    return SongInfo(domain, intradomain_id, ext, duration, title)
 
 
 def _parse_old_song_key(line: str) -> SongKey:
-    domain, id = line.strip().split(maxsplit=2)[:2]
-    return domain, id
+    domain, intradomain_id = line.strip().split(maxsplit=2)[:2]
+    return domain, intradomain_id

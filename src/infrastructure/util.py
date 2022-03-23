@@ -1,3 +1,4 @@
+"""Collection of generic utility functions"""
 from inspect import signature
 from typing import Any, Tuple, TypeVar
 
@@ -15,12 +16,12 @@ def onoff(val: bool) -> str:
 
 
 def format_duration(seconds: int) -> str:
-    m, s = divmod(seconds, 60)
-    h, m = divmod(m, 60)
-    d, h = divmod(h, 24)
-    dstr = f"{d}d " if d else ""
-    hstr = f"{h}:" if h else ""
-    return f"{dstr}{hstr}{m:02d}:{s:02d}"
+    minutes, seconds = divmod(seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+    days, hours = divmod(hours, 24)
+    dstr = f"{days}d " if days else ""
+    hstr = f"{hours}:" if hours else ""
+    return f"{dstr}{hstr}{minutes:02d}:{seconds:02d}"
 
 
 def format_size(bytes_: int) -> str:

@@ -1,3 +1,8 @@
+"""
+Collection of inter-dependent state variables required for playing songs in an orderly manner.
+
+Additionally handles state persistence through restarts.
+"""
 from __future__ import annotations
 
 import enum
@@ -212,13 +217,15 @@ class MusicContext(Persist):
                 self._history_queue.clear()
 
             return self._select_queue.pop_random()
-        else:
-            if self.is_shuffling:
-                return self._select_queue.pop_random()
-            else:
-                return self._select_queue.pop()
+
+        if self.is_shuffling:
+            return self._select_queue.pop_random()
+
+        return self._select_queue.pop()
 
     def _update_select_mode(self, value: SongSelectMode):
+        # False positive? The ordering matters and makes enough sense
+        # pylint: disable=consider-using-in
         if value == SongSelectMode.RADIO or self._select_mode == SongSelectMode.RADIO:
             self._history_queue.clear()
 
@@ -255,3 +262,9 @@ class MusicContext(Persist):
     @property
     def is_radio(self) -> bool:
         return self._select_mode == SongSelectMode.RADIO
+
+    @property
+    def voice_channel(self) -> Optional[discord.VoiceChannel]:
+        if self._voice_client is None:
+            return None
+        return self._voice_client.channel

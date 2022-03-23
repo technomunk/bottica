@@ -1,3 +1,4 @@
+"""Music-specific errors"""
 import discord
 
 from infrastructure.friendly_error import FriendlyError

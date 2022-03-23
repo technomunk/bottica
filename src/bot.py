@@ -1,9 +1,12 @@
-# Discord bot entry point.
-# Register and run the main logic.
+"""
+Discord bot entry point.
+Register and run the main logic.
+"""
 
 import logging
 import random
 from argparse import ArgumentParser
+from typing import Callable, Iterable, List
 
 import discord
 import sentry_sdk
@@ -18,6 +21,8 @@ from music.cog import Music
 from response import JEALOUS, REACTIONS
 from sass import make_sass, should_sass
 
+# Not my fault discord type-info sucks
+# pylint: disable=assigning-non-slot
 intents = discord.Intents.default()
 intents.typing = False
 intents.presences = False
@@ -26,6 +31,10 @@ _logger = logging.getLogger(__name__)
 
 
 class Bottica(DiscordBot):
+    def __init__(self, command_prefix, help_command=..., description=None, **options):
+        self.status_reporters: List[Callable[[], Iterable[str]]] = []
+        super().__init__(command_prefix, help_command, description, **options)
+
     async def close(self) -> None:
         for cog in self.cogs.values():
             if closer := getattr(cog, "close"):
@@ -129,6 +138,8 @@ def run_bot():
     sentry_token = args.sentry_token or config.get("sentry_token", "")
     if sentry_token:
         print("Initializing sentry")
+        # Probably sentry SDK issue
+        # pylint: disable=abstract-class-instantiated
         sentry_sdk.init(sentry_token)
 
     # set up logging
@@ -140,7 +151,6 @@ def run_bot():
     )
     logging.getLogger("discord").setLevel(logging.WARNING)
 
-    bot.status_reporters = []
     register_commands(bot)
     bot.add_cog(Music(bot))
 

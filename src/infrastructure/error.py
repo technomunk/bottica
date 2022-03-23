@@ -1,23 +1,25 @@
-# Error-handling for the bot
+"""Error-handling for the bot."""
 
 import asyncio
 import logging
 from asyncio.exceptions import CancelledError
-from re import I
 from typing import Coroutine, Optional
 
 import discord.ext.commands as cmd
 from discord import Embed
 from sentry_sdk import capture_exception
 
-from .friendly_error import make_user_friendly
 from response import REACTIONS
+
+from .friendly_error import make_user_friendly
 
 _logger = logging.getLogger(__name__)
 event_loop = asyncio.get_event_loop()
 
 
 async def safe_coro(coroutine: Coroutine, ctx: Optional[cmd.Context] = None):
+    # We definitely want to catch all non-exit errors for sentry and robustness
+    # pylint: disable=broad-except
     try:
         await coroutine
     except CancelledError:

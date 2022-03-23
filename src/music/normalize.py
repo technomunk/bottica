@@ -1,3 +1,4 @@
+"""Loudness-normalization utility."""
 import logging
 from os import remove
 from os.path import splitext
@@ -10,8 +11,12 @@ from .song import SongInfo
 
 _logger = logging.getLogger(__name__)
 
+# FFMEG is too verbose and pre-initializes its logger
+# pylint: disable=protected-access
 ffmpeg_normalize._media_file.logger.setLevel(logging.ERROR)
 
+# I'd rather have a bit of duplication that putting kwargs in a dictionary to reuse 6 variables
+# pylint: disable=duplicate-code
 _default_config = FFmpegNormalize(
     target_level=-18,
     audio_codec="libopus",

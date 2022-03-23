@@ -1,3 +1,6 @@
+"""
+Define song metadata structure as well as helper collections for managing song queues and sets.
+"""
 from __future__ import annotations
 
 import csv
@@ -18,6 +21,8 @@ SongKey = Tuple[str, str]
 _logger = logging.getLogger(__name__)
 
 
+# csv.Dialect be like that
+# pylint: disable=too-few-public-methods
 class SongCSVDialect(csv.Dialect):
     delimiter = ";"
     doublequote = False
@@ -36,24 +41,24 @@ def keystr(key: SongKey) -> str:
 @dataclass(slots=True)
 class SongInfo:
     domain: str
-    id: str
+    intradomain_id: str
     ext: str
     duration: int
     title: str
 
     @property
     def key(self) -> SongKey:
-        return (self.domain, self.id)
+        return (self.domain, self.intradomain_id)
 
     @property
     def filename(self) -> str:
-        return f"{self.domain}_{self.id}.{self.ext}"
+        return f"{self.domain}_{self.intradomain_id}.{self.ext}"
 
     @property
     def link(self) -> str:
         if self.domain != "youtube":
             raise NotImplementedError("SongInfo::link(domain != youtube)")
-        return f"https://www.{self.domain}.com/watch?v={self.id}"
+        return f"https://www.{self.domain}.com/watch?v={self.intradomain_id}"
 
     @property
     def pretty_link(self) -> str:
@@ -96,14 +101,14 @@ class SongRegistry:
 
     def __getitem__(self, key: SongKey) -> SongInfo:
         info = self._data[key]
-        domain, id = key
-        return SongInfo(domain, id, *info)
+        domain, intradomain_id = key
+        return SongInfo(domain, intradomain_id, *info)
 
     def get(self, key: SongKey) -> Optional[SongInfo]:
-        domain, id = key
+        domain, intradomain_id = key
         ext_title = self._data.get(key)
         if ext_title:
-            return SongInfo(domain, id, *ext_title)
+            return SongInfo(domain, intradomain_id, *ext_title)
         return None
 
     def __iter__(self) -> Generator[SongInfo, None, None]:
@@ -204,8 +209,8 @@ class SongQueue(_SongKeyCollection):
         self._duration += song.duration
         self._tail.append(song.key)
 
-    def extend(self, it: Iterable[SongInfo]) -> None:
-        for song in it:
+    def extend(self, songs: Iterable[SongInfo]) -> None:
+        for song in songs:
             self._tail.append(song.key)
             self._duration += song.duration
 

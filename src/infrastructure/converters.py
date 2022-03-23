@@ -1,3 +1,4 @@
+"""Data-converters for persistence."""
 import enum
 import logging
 import typing
@@ -12,6 +13,9 @@ VarT = TypeVar("VarT")
 ChannelT = TypeVar("ChannelT", discord.TextChannel, discord.VoiceChannel)
 EnumT = TypeVar("EnumT", bound=enum.Enum)
 _logger = logging.getLogger(__name__)
+
+# For method parity with parent class we need to match the method signature.
+# pylint: disable=unused-argument
 
 
 class Optional(Converter[typing.Optional[VarT]]):

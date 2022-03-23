@@ -1,3 +1,4 @@
+"""Metadata file structure"""
 from os import makedirs
 
 

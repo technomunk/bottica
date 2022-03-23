@@ -1,3 +1,4 @@
+"""Sassy random remarks that give the bot more character."""
 from random import choice, random
 
 from discord.ext import commands as cmd
@@ -17,7 +18,7 @@ def _sass_echo(ctx: cmd.Context) -> str:
     return f"{ctx.author.name}.{ctx.invoked_with}"
 
 
-def _sass_phrase(ctx: cmd.Context) -> str:
+def _sass_phrase(_ctx: cmd.Context) -> str:
     return choice(_SASS_PHASES)
 
 

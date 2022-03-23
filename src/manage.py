@@ -122,6 +122,8 @@ def clean(verbose: bool):
 @click.option("-f", "--force", is_flag=True, help="Forcefully override all files (opus included).")
 def normalize(verbose: bool, keep_file: bool, force: bool):
     """Loudness-normalize all songs in the audio folder."""
+    # Yeah some paramters are repeated, so be it
+    # pylint: disable=duplicate-code
     normalization_config = FFmpegNormalize(
         target_level=-18,
         print_stats=verbose,
@@ -146,6 +148,7 @@ def normalize(verbose: bool, keep_file: bool, force: bool):
             try:
                 if song_info.ext != normalization_config.output_format or force:
                     normalize_song(song_info, normalization_config, keep_file)
+            # pylint: disable=broad-except
             except Exception as e:
                 print(e)
 

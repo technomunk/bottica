@@ -1,6 +1,8 @@
+"""
+A message that sticks to the bottom of a channel until deletion.
+If a message is not the freshes in a channel after an update it will be resent.
+"""
 from __future__ import annotations
-
-from typing import Callable, Optional, Tuple
 
 import discord
 
@@ -34,6 +36,8 @@ class StickyMessage:
     def delete(self):
         atask(self._message.delete())
 
+    # follows the same style as discord API
+    # pylint: disable=invalid-name
     @property
     def id(self) -> int:
         return self._message.id

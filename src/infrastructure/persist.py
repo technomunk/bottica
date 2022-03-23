@@ -15,10 +15,13 @@ ClassT = TypeVar("ClassT", bound=object)
 _logger = logging.getLogger(__name__)
 
 
+# pylint: disable=too-few-public-methods
 class _Missing:
     """Helper marker for undefined default parameter."""
 
 
+# This is an interface, so we need self and kwargs for API
+# pylint: disable=no-self-use,unused-argument
 class Converter(Generic[VarT]):
     """Convert data to and from form that is saved to file."""
 
@@ -53,7 +56,7 @@ class Persist:
             value = getattr(self, field.name)
             marshalled_data[field.name] = field.converter.to_serial(value, **converter_kwargs)
 
-        with open(filename, "w") as json_file:
+        with open(filename, "w", encoding="utf8") as json_file:
             json.dump(marshalled_data, json_file)
 
         _logger.debug("saved %s", filename)
@@ -66,7 +69,7 @@ class Persist:
         """
         marshalled_data = {}
         if path.isfile(filename):
-            with open(filename, "r") as json_file:
+            with open(filename, "r", encoding="utf8") as json_file:
                 marshalled_data = json.load(json_file)
 
         for field in self._persist_fields:
@@ -92,6 +95,7 @@ class Field(Generic[VarT]):
         default_factory: Optional[Callable[[], VarT]] = None,
         converter: Converter[VarT] = Converter(),
     ) -> None:
+        self.name: str
         if isinstance(default, _Missing):
             self.default: Optional[Callable[[], VarT]] = default_factory
         elif default_factory is not None:

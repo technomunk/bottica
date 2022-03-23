@@ -1,7 +1,8 @@
-# Music-playing Cog for the bot
+"""Music-playing Cog for the bot"""
 
 import logging
 import random
+from functools import partial
 from os import path
 from typing import Dict, Iterable, List, Optional
 
@@ -24,14 +25,16 @@ ALLOWED_INFO_TYPES = ("video", "url")
 _logger = logging.getLogger(__name__)
 
 
-class Music(cmd.Cog):  # type: ignore
+# We are using third party API design
+# pylint: disable=no-self-use
+class Music(cmd.Cog):
     def __init__(self, bot: cmd.Bot) -> None:
         self.bot = bot
         self.loader = Downloader(bot.loop)
         self.song_registry = SongRegistry(SONG_REGISTRY_FILENAME)
         self.contexts: Dict[int, MusicContext] = {}
 
-        self.bot.status_reporters.append(lambda ctx: self.status(ctx))
+        self.bot.status_reporters.append(partial(self.status, self))
 
     def get_music_context(self, ctx: cmd.Context) -> MusicContext:
         if ctx.guild.id not in self.contexts:
@@ -48,6 +51,8 @@ class Music(cmd.Cog):  # type: ignore
                     mctx = await MusicContext.resume(self.bot, guild, self.song_registry)
                     self.contexts[guild.id] = mctx
 
+                # In this case, we indeed want to catch any and all non-exit exceptions and log them
+                # pylint: disable=broad-except
                 except Exception as e:
                     _logger.exception(e)
                     _logger.info("guild id: %d", guild.id)
@@ -72,7 +77,7 @@ class Music(cmd.Cog):  # type: ignore
         guild_id = after.channel.guild.id if after.channel is not None else before.channel.guild.id
 
         mctx = self.contexts.get(guild_id)
-        if mctx is None or mctx._voice_client is None:
+        if mctx is None or mctx.voice_channel is None:
             return
 
         if member == self.bot.user:
@@ -82,7 +87,7 @@ class Music(cmd.Cog):  # type: ignore
         if not is_listening(member) or after.channel is None:
             return
 
-        if after.channel == mctx._voice_client.channel:
+        if after.channel == mctx.voice_channel:
             if (
                 not mctx.is_playing()
                 and not mctx.is_paused()
@@ -125,7 +130,7 @@ class Music(cmd.Cog):  # type: ignore
             if song is None:
                 _logger.debug("downloading '%s'", key)
                 song = await self.loader.download(info)
-                await self.bot.loop.run_in_executor(None, lambda: normalize_song(song))
+                await self.bot.loop.run_in_executor(None, partial(normalize_song, song))
                 self.song_registry.put(song)
 
             if mctx.song_set.add(song) or not mctx.is_radio:
@@ -146,7 +151,7 @@ class Music(cmd.Cog):  # type: ignore
         req = await self.loader.get_info(query)
         req_type = req.get("_type", "video")
         if req_type == "playlist":
-            atask(self._queue_audio(ctx, [entry for entry in req["entries"]]), ctx)
+            atask(self._queue_audio(ctx, list(entry for entry in req["entries"])), ctx)
         else:
             atask(self._queue_audio(ctx, [req]), ctx)
 
@@ -249,10 +254,10 @@ class Music(cmd.Cog):  # type: ignore
         if mode:
             try:
                 mctx.select_mode = SongSelectMode(mode)
-            except ValueError:
+            except ValueError as e:
                 raise cmd.BadArgument(
                     f"Sorry, I can only be in one of {[e.value for e in SongSelectMode]} modes!"
-                )
+                ) from e
         else:
             atask(ctx.reply(f"I'm in {mctx.select_mode.value} mode. 😊"))
 
