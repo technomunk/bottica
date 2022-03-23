@@ -10,6 +10,7 @@ jobs:
         python-version: ["3.10"]
     steps:
     - uses: actions/checkout@v2
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
@@ -21,8 +22,7 @@ jobs:
       with:
         path: ./.venv/
         key: ${{ runner.os }}-venv-${{ hashFiles('**/requirements*.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-venv-
+        restore-keys: ${{ runner.os }}-venv-
     - name: Install dependencies
       if: steps.cache-venv.outputs.cache-hit != 'true'
       run: |
@@ -31,15 +31,26 @@ jobs:
         pip install -r requirements-dev.txt
         pip install -r requirements.txt
 
-    - name: Analyse the code with mypy
-      run: |
-        mypy --namespace-packages src/
-    - name: Analyse the code with pylint
-      run: |
-        pylint src/
-    - name: Lint the code with flake8
-      run: |
-        flake8 src/
-    - name: Format the code with black
-      run: |
-        black --check src/
+  analyse-mypy:
+    name: Mypy analysis
+    needs: build
+    steps:
+      - run: mypy --namespace-packages src/
+
+  analyze-pylint:
+    name: Pylint analysis
+    needs: build
+    steps:
+      - run: pylint src/
+
+  analyze-flake8:
+    name: Flake8 analysis
+    needs: build
+    steps:
+      - run: flake8 src/
+
+  analyse-black:
+    name: Black analysis
+    needs: build
+    steps:
+      run: black --check src/
