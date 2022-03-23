@@ -15,17 +15,16 @@ _logger = logging.getLogger(__name__)
 # pylint: disable=protected-access
 ffmpeg_normalize._media_file.logger.setLevel(logging.ERROR)
 
-# I'd rather have a bit of duplication that putting kwargs in a dictionary to reuse 6 variables
-# pylint: disable=duplicate-code
-_default_config = FFmpegNormalize(
-    target_level=-18,
-    audio_codec="libopus",
-    video_disable=True,
-    subtitle_disable=True,
-    metadata_disable=True,
-    chapters_disable=True,
-    output_format="opus",
-)
+DEFAULT_NORMALIZATION_CONFIG = {
+    "target_level": -18,
+    "audio_codec": "libopus",
+    "video_disable": True,
+    "subtitle_disable": True,
+    "metadata_disable": True,
+    "chapters_disable": True,
+    "output_format": "opus",
+}
+_default_config = FFmpegNormalize(**DEFAULT_NORMALIZATION_CONFIG)
 
 
 def normalize_song(

@@ -14,7 +14,7 @@ from ffmpeg_normalize import FFmpegNormalize
 
 from infrastructure.util import format_size
 from music.file import AUDIO_FOLDER, GUILD_SET_FOLDER, SONG_REGISTRY_FILENAME
-from music.normalize import normalize_song
+from music.normalize import DEFAULT_NORMALIZATION_CONFIG, normalize_song
 from music.song import FILE_ENCODING, SongCSVDialect, SongKey, open_song_registry
 from version import BOT_VERSION
 from version.migrate import MIGRATIONS
@@ -122,18 +122,10 @@ def clean(verbose: bool):
 @click.option("-f", "--force", is_flag=True, help="Forcefully override all files (opus included).")
 def normalize(verbose: bool, keep_file: bool, force: bool):
     """Loudness-normalize all songs in the audio folder."""
-    # Yeah some paramters are repeated, so be it
-    # pylint: disable=duplicate-code
     normalization_config = FFmpegNormalize(
-        target_level=-18,
         print_stats=verbose,
         debug=verbose,
-        audio_codec="libopus",
-        video_disable=True,
-        subtitle_disable=True,
-        metadata_disable=True,
-        chapters_disable=True,
-        output_format="opus",
+        **DEFAULT_NORMALIZATION_CONFIG,
     )
 
     registry_filename, _ = splitext(SONG_REGISTRY_FILENAME)

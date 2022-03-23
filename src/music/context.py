@@ -30,9 +30,90 @@ class SongSelectMode(enum.Enum):
     RADIO = "radio"
 
 
-class MusicContext(Persist):
+class SelectSong(Persist):
     _select_mode = Field(SongSelectMode.QUEUE, converter=converters.Enum(SongSelectMode))
     min_repeat_interval = Field(32)
+
+    def __init__(self, guild_id: int, registry: SongRegistry) -> None:
+        super().__init__()
+
+        self._song_set = SongSet(registry, f"{GUILD_SET_FOLDER}{guild_id}.csv")
+        self._select_queue = SongQueue(registry)
+        self._history_queue = SongQueue(registry)
+
+        if self._select_mode != SongSelectMode.QUEUE:
+            self._update_select_mode(self._select_mode)
+
+    def clear(self) -> None:
+        self._select_queue.clear()
+        self._history_queue.clear()
+        self._select_mode = SongSelectMode.QUEUE
+
+    def select_next(self) -> Optional[SongInfo]:
+        """Select the next song to play (mutably)."""
+        if self.is_radio:
+            if self._select_queue.head is not None:
+                self._history_queue.push(self._select_queue.head)
+
+            if len(self._history_queue) > self.min_repeat_interval:
+                song = self._history_queue.pop()
+                assert song is not None
+                self._select_queue.push(song)
+
+            # Might happen if the min repeat interval is smaller than the guild set
+            if len(self._select_queue) <= 1:
+                self._select_queue.extend(self._history_queue)
+                self._history_queue.clear()
+
+            return self._select_queue.pop_random()
+
+        if self.is_shuffling:
+            return self._select_queue.pop_random()
+
+        return self._select_queue.pop()
+
+    def _update_select_mode(self, value: SongSelectMode):
+        # False positive? The ordering matters and makes enough sense
+        # pylint: disable=consider-using-in
+        if value == SongSelectMode.RADIO or self._select_mode == SongSelectMode.RADIO:
+            self._history_queue.clear()
+
+        if self._select_mode == SongSelectMode.RADIO:
+            self._select_queue.clear()
+
+        if value == SongSelectMode.RADIO:
+            self._select_queue.clear()
+            self._select_queue.extend(self._song_set)
+
+    @property
+    def select_mode(self) -> SongSelectMode:
+        return self._select_mode
+
+    @select_mode.setter
+    def select_mode(self, value: SongSelectMode):
+        if self._select_mode == value:
+            return
+        self._update_select_mode(value)
+        self._select_mode = value
+
+    @property
+    def song_queue(self) -> SongQueue:
+        return self._select_queue
+
+    @property
+    def song_set(self) -> SongSet:
+        return self._song_set
+
+    @property
+    def is_shuffling(self) -> bool:
+        return self._select_mode == SongSelectMode.SHUFFLE_QUEUE
+
+    @property
+    def is_radio(self) -> bool:
+        return self._select_mode == SongSelectMode.RADIO
+
+
+class MusicContext(SelectSong):
     text_channel: Field[discord.TextChannel] = Field(converter=converters.DiscordChannel())
     _voice_client = Field(None, converter=converters.Optional(converters.DiscordVoiceClient()))
     song_message = Field(None, converter=converters.Optional(converters.StickyMessage()))
@@ -44,17 +125,11 @@ class MusicContext(Persist):
         voice_client: Optional[discord.VoiceClient],
         registry: SongRegistry,
     ):
-        super().__init__()
+        super().__init__(guild_id=guild.id, registry=registry)
 
         self._guild = guild
 
-        self._song_set = SongSet(registry, f"{GUILD_SET_FOLDER}{self._guild.id}.csv")
-        self._select_queue = SongQueue(registry)
-        self._history_queue = SongQueue(registry)
-
         self._voice_client = voice_client
-        if self._select_mode != SongSelectMode.QUEUE:
-            self._update_select_mode(self._select_mode)
 
         if text_channel is not None:
             self.text_channel = text_channel
@@ -78,12 +153,10 @@ class MusicContext(Persist):
 
     def clear(self) -> None:
         """Reset context to a clean state ready for a new play attempt."""
-        self._select_queue.clear()
-        self._history_queue.clear()
+        super().clear()
         if self.song_message is not None:
             self.song_message.delete()
         self.song_message = None
-        self._select_mode = SongSelectMode.QUEUE
         self.disconnect()
         self.save(self.filename)
 
@@ -199,69 +272,6 @@ class MusicContext(Persist):
         )
         if self.song_message is not None:
             atask(self.display_current_song_info(True))
-
-    def select_next(self) -> Optional[SongInfo]:
-        """Select the next song to play (mutably)."""
-        if self.is_radio:
-            if self._select_queue.head is not None:
-                self._history_queue.push(self._select_queue.head)
-
-            if len(self._history_queue) > self.min_repeat_interval:
-                song = self._history_queue.pop()
-                assert song is not None
-                self._select_queue.push(song)
-
-            # Might happen if the min repeat interval is smaller than the guild set
-            if len(self._select_queue) <= 1:
-                self._select_queue.extend(self._history_queue)
-                self._history_queue.clear()
-
-            return self._select_queue.pop_random()
-
-        if self.is_shuffling:
-            return self._select_queue.pop_random()
-
-        return self._select_queue.pop()
-
-    def _update_select_mode(self, value: SongSelectMode):
-        # False positive? The ordering matters and makes enough sense
-        # pylint: disable=consider-using-in
-        if value == SongSelectMode.RADIO or self._select_mode == SongSelectMode.RADIO:
-            self._history_queue.clear()
-
-        if self._select_mode == SongSelectMode.RADIO:
-            self._select_queue.clear()
-
-        if value == SongSelectMode.RADIO:
-            self._select_queue.clear()
-            self._select_queue.extend(self._song_set)
-
-    @property
-    def select_mode(self) -> SongSelectMode:
-        return self._select_mode
-
-    @select_mode.setter
-    def select_mode(self, value: SongSelectMode):
-        if self._select_mode == value:
-            return
-        self._update_select_mode(value)
-        self._select_mode = value
-
-    @property
-    def song_queue(self) -> SongQueue:
-        return self._select_queue
-
-    @property
-    def song_set(self) -> SongSet:
-        return self._song_set
-
-    @property
-    def is_shuffling(self) -> bool:
-        return self._select_mode == SongSelectMode.SHUFFLE_QUEUE
-
-    @property
-    def is_radio(self) -> bool:
-        return self._select_mode == SongSelectMode.RADIO
 
     @property
     def voice_channel(self) -> Optional[discord.VoiceChannel]:
