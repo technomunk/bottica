@@ -22,30 +22,11 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - run: pip install -r requirements.txt
 
-  analyse-mypy:
-    name: Mypy analysis
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - run: mypy --namespace-packages src/
-
-  analyse-pylint:
-    name: Pylint analysis
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - run: pylint src/
-
-  analyse-flake8:
-    name: Flake8 analysis
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - run: flake8 src/
-
-  analyse-black:
-    name: Black analysis
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - run: black --check src/
+      - name: Analyse code with mypy
+        run: mypy --namespace-packages src/
+      - name: Analyse code with pylint
+        run: pylint src/
+      - name: Analyse code with flake8
+        run: flake8 src/
+      - name: Analyse code with black
+        run: black --check src/
