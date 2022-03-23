@@ -33,3 +33,10 @@ Start by using `b.help` which will print all available commands.
 
 - Submit issues with wished functionality or problems encountered during use
 - Fork the repo and make an upstream PR with your own changes
+  + Install dev requirements `pip install -r requirements-dev.txt`
+  + Run analysis tools:
+    * `mypy --namespace-packages src/`
+    * `pylint src/`
+    * `flake8 src/`
+    * `black --check src/`
+  + Resolve any issues you see.
