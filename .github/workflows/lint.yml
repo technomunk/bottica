@@ -15,18 +15,10 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
+          cache: "pip"
+          cache-dependency-path: "**/requirements*.txt"
 
-      - name: Load cached environment
-        uses: actions/cache@v2
-        id: cache-venv
-        with:
-          path: ./.venv/
-          key: ${{ runner.os }}-venv-${{ hashFiles('**/requirements*.txt') }}
-          restore-keys: ${{ runner.os }}-venv-
-      - name: Install dependencies
-        if: steps.cache-venv.outputs.cache-hit != 'true'
-        run: |
-          python -m venv ./.venv
+      - run: |
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
           pip install -r requirements.txt
