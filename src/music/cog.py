@@ -245,7 +245,7 @@ class Music(cmd.Cog):
     async def song(self, ctx: cmd.Context, sticky: bool = False) -> None:
         """Display information about the current song."""
         if not isinstance(ctx.channel, discord.TextChannel):
-            return  # TODO: raise a user-friendly error
+            return
 
         mctx = self.get_music_context(ctx)
         if mctx.is_playing() and mctx.song_queue.head is not None:
