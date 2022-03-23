@@ -33,24 +33,28 @@ jobs:
 
   analyse-mypy:
     name: Mypy analysis
+    runs-on: ubuntu-latest
     needs: build
     steps:
       - run: mypy --namespace-packages src/
 
-  analyze-pylint:
+  analyse-pylint:
     name: Pylint analysis
+    runs-on: ubuntu-latest
     needs: build
     steps:
       - run: pylint src/
 
-  analyze-flake8:
+  analyse-flake8:
     name: Flake8 analysis
+    runs-on: ubuntu-latest
     needs: build
     steps:
       - run: flake8 src/
 
   analyse-black:
     name: Black analysis
+    runs-on: ubuntu-latest
     needs: build
     steps:
       - run: black --check src/
