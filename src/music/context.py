@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import enum
 import logging
-from typing import Optional
+from typing import Optional, cast
 
 import discord
 
@@ -141,7 +141,8 @@ class MusicContext(SelectSong):
         guild: discord.Guild,
         registry: SongRegistry,
     ) -> MusicContext:
-        mctx = cls(guild, None, None, registry)
+        # we know the text channel will get loaded, so hackily ignore invalid state
+        mctx = cls(guild, cast(discord.TextChannel, None), None, registry)
         await mctx.load(mctx.filename, client=client)
         mctx._update_select_mode(mctx._select_mode)
 
@@ -219,13 +220,13 @@ class MusicContext(SelectSong):
         Play the next song in the queue.
         If I'm not playing I will join the issuer's voice channel.
         """
-        if self._voice_client is None or self._voice_client.channel is None:
+        if self._voice_client is None or self.voice_channel is None:
             raise RuntimeError("Bot is not connected to voice to play.")
 
         if not self._voice_client.is_connected():
             raise RuntimeError("Bot is not connected to a voice channel.")
 
-        if not has_listening_members(self._voice_client.channel):
+        if not has_listening_members(self.voice_channel):
             # skip playback. It will be attempted again in Cog.on_voice_state_update()
             _logger.debug("playback skipped due to no active members")
             if self.song_message is not None:
@@ -277,4 +278,4 @@ class MusicContext(SelectSong):
     def voice_channel(self) -> Optional[discord.VoiceChannel]:
         if self._voice_client is None:
             return None
-        return self._voice_client.channel
+        return cast(discord.VoiceChannel, self._voice_client.channel)

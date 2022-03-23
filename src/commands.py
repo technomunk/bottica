@@ -19,7 +19,7 @@ async def status(ctx: cmd.Context):
         "`purge` is now called `clear`",
         "And I'm happy I'm here!",
     ]
-    for reporter in ctx.bot.status_reporters:
+    for reporter in ctx.bot.status_reporters:  # type: ignore
         lines.extend(reporter(ctx))
     embed = discord.Embed(description="\n".join(lines))
     atask(ctx.reply(embed=embed))

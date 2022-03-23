@@ -1,5 +1,6 @@
 """Sassy random remarks that give the bot more character."""
 from random import choice, random
+import discord
 
 from discord.ext import commands as cmd
 
@@ -34,7 +35,12 @@ _ALL_SASS = [
 
 def should_sass(ctx: cmd.Context) -> bool:
     """Check whether the author of a command should get sass."""
-    weight = len(ctx.author.roles)  # higher ups get more sass
+    author = ctx.author
+    if not isinstance(author, discord.Member) or ctx.guild is None:
+        return False  # no sass in private channels
+
+    # higher ups get more sass
+    weight = len(author.roles)
     max_weight = len(ctx.guild.roles)
 
     sass_chance = MAX_SASS_CHANCE * (weight / max_weight)

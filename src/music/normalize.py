@@ -3,7 +3,7 @@ import logging
 from os import remove
 from os.path import splitext
 
-import ffmpeg_normalize
+import ffmpeg_normalize  # type: ignore
 from ffmpeg_normalize import FFmpegNormalize, MediaFile
 
 from .file import AUDIO_FOLDER

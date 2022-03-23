@@ -15,7 +15,7 @@ class StickyMessage:
     If a message is not the freshes in a channel after an update it will be resent.
     """
 
-    def __init__(self, message: discord.message):
+    def __init__(self, message: discord.Message):
         self._message = message
 
     @classmethod
@@ -43,5 +43,5 @@ class StickyMessage:
         return self._message.id
 
     @property
-    def channel(self) -> discord.TextChannel:
+    def channel(self) -> discord.abc.Messageable:
         return self._message.channel

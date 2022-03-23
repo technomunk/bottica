@@ -53,25 +53,26 @@ class DiscordChannel(Converter[ChannelT]):
 
     async def from_serial(self, value: int, **kwargs) -> ChannelT:
         client: discord.Client = kwargs["client"]
-        return client.get_channel(value)
+        return client.get_channel(value)  # type: ignore
 
 
 class DiscordVoiceClient(Converter[discord.VoiceClient]):
     def to_serial(self, value: discord.VoiceClient, **kwargs) -> int:
-        return value.channel.id
+        return value.channel.id  # type: ignore
 
     async def from_serial(self, value: int, **kwargs) -> discord.VoiceClient:
         client: discord.Client = kwargs["client"]
-        channel: discord.VoiceChannel = client.get_channel(value)
+        channel: discord.VoiceChannel = client.get_channel(value)  # type: ignore
         return await channel.connect()
 
 
 class StickyMessage(Converter[StickyMessageCls]):
     def to_serial(self, value: StickyMessageCls, **kwargs) -> Tuple[int, int]:
+        assert isinstance(value.channel, discord.TextChannel)
         return value.channel.id, value.id
 
     async def from_serial(self, value: Tuple[int, int], **kwargs) -> StickyMessageCls:
         client: discord.Client = kwargs["client"]
-        channel: discord.TextChannel = client.get_channel(value[0])
+        channel: discord.TextChannel = client.get_channel(value[0])  # type: ignore
         message: discord.Message = await channel.fetch_message(value[1])
         return StickyMessageCls(message)

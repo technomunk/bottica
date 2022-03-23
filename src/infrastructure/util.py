@@ -40,7 +40,7 @@ def converted_type_name(converter: Any) -> str:
     return annotated_return or converter.__module__.split(".", maxsplit=1)[-1]
 
 
-def convertee_names(converters: Tuple[Converter]) -> str:
+def convertee_names(converters: Tuple[Converter, ...]) -> str:
     """
     Generate a human readable version of types of converter results.
     Ex:

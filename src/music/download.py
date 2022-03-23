@@ -3,7 +3,7 @@ from asyncio import BaseEventLoop
 from logging import getLogger
 from typing import Tuple
 
-from yt_dlp import YoutubeDL
+from yt_dlp import YoutubeDL  # type: ignore
 
 from .file import AUDIO_FOLDER, DATA_FOLDER
 from .song import SongInfo

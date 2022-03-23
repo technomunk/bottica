@@ -33,8 +33,10 @@ async def safe_coro(coroutine: Coroutine, ctx: Optional[cmd.Context] = None):
         _logger.exception(error, stacklevel=2)
         if ctx is not None:
             # deliberately skip providing ctx to avoid infinite error-handling
-            atask(ctx.message.remove_reaction(REACTIONS["command_succeeded"], ctx.me))
-            atask(ctx.message.add_reaction(REACTIONS["command_failed"]))
+            success_reaction: str = REACTIONS["command_succeeded"]  # type: ignore
+            failed_reaction: str = REACTIONS["command_failed"]  # type: ignore
+            atask(ctx.message.remove_reaction(success_reaction, ctx.me))
+            atask(ctx.message.add_reaction(failed_reaction))
             embed = Embed(
                 title=":warning: Internal Error :warning:",
                 description="Something went wrong executing the command.",
@@ -51,20 +53,19 @@ def atask(coroutine: Coroutine, ctx: Optional[cmd.Context] = None):
 
 async def handle_command_error(ctx: cmd.Context, error: cmd.CommandError):
     _logger.exception(error, stacklevel=2)
-    atask(ctx.message.remove_reaction(REACTIONS["command_succeeded"], ctx.me))
-    atask(ctx.message.add_reaction(REACTIONS["command_failed"]))
+    atask(ctx.message.remove_reaction(REACTIONS["command_succeeded"], ctx.me))  # type: ignore
+    atask(ctx.message.add_reaction(REACTIONS["command_failed"]))  # type: ignore
 
     if not isinstance(error, cmd.UserInputError):
         capture_exception(error)
 
     response = make_user_friendly(error)
-    if not response:
-        response = Embed(
-            title=":warning: Internal Error :warning:",
-            description="Something went wrong executing the command.",
-        )
-
-    if isinstance(response, Embed):
-        atask(ctx.message.reply(embed=response))
-    else:
+    if response:
         atask(ctx.message.reply(response))
+        return
+
+    fancy_response = Embed(
+        title=":warning: Internal Error :warning:",
+        description="Something went wrong executing the command.",
+    )
+    atask(ctx.message.reply(embed=fancy_response))

@@ -32,7 +32,7 @@ _logger = logging.getLogger(__name__)
 
 class Bottica(DiscordBot):
     def __init__(self, command_prefix, help_command=..., description=None, **options):
-        self.status_reporters: List[Callable[[], Iterable[str]]] = []
+        self.status_reporters: List[Callable[[cmd.Context], Iterable[str]]] = []
         super().__init__(command_prefix, help_command, description, **options)
 
     async def close(self) -> None:
@@ -61,8 +61,9 @@ async def on_ready():
 
 @bot.before_invoke
 async def pre_invoke(ctx: cmd.Context):
+    assert ctx.guild is not None
     _logger.info('calling "%s" in "%s"', ctx.message.content, ctx.guild.name)
-    atask(ctx.message.add_reaction(REACTIONS["command_seen"]))
+    atask(ctx.message.add_reaction(REACTIONS["command_seen"]))  # type: ignore
     if should_sass(ctx):
         atask(ctx.reply(make_sass(ctx)))
     else:
@@ -71,7 +72,7 @@ async def pre_invoke(ctx: cmd.Context):
 
 @bot.after_invoke
 async def post_invoke(ctx: cmd.Context):
-    atask(ctx.message.add_reaction(REACTIONS["command_succeeded"]))
+    atask(ctx.message.add_reaction(REACTIONS["command_succeeded"]))  # type: ignore
 
 
 @bot.listen("on_message")

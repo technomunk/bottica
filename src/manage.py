@@ -10,7 +10,7 @@ from os.path import isfile, splitext
 from typing import Callable, List, Set, Tuple
 
 import click
-from ffmpeg_normalize import FFmpegNormalize
+from ffmpeg_normalize import FFmpegNormalize  # type: ignore
 
 from infrastructure.util import format_size
 from music.file import AUDIO_FOLDER, GUILD_SET_FOLDER, SONG_REGISTRY_FILENAME

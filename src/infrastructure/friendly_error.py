@@ -40,6 +40,7 @@ class FriendlyError(CommandError):
     """An error with a message that can be directly reported to the user."""
 
     def __init__(self, message: str, *args):
+        self.message = message
         super().__init__(message, *args)
 
 
@@ -77,15 +78,15 @@ FRIENDLY_MESSAGES: Dict[Type[CommandError], Union[str, CustomMessage]] = {
     BadBoolArgument: "Give me `yes` or `no`! COMMIT DAMN IT!",
     BadColourArgument: "Afaik, {error.argument} is not a color.",
     BadInviteArgument: "That invite doesn't look right to me.",
-    BadUnionArgument: _bad_union_argument,
+    BadUnionArgument: _bad_union_argument,  # type: ignore
     MissingRequiredArgument: "Sorry, I need a {error.param.name}!",
     TooManyArguments: "Whoa whoa whoa, tmi, TMI!",
     # Missing requirements
-    BotMissingAnyRole: _bot_missing_any_role,
-    BotMissingPermissions: _bot_missing_permissions,
+    BotMissingAnyRole: _bot_missing_any_role,  # type: ignore
+    BotMissingPermissions: _bot_missing_permissions,  # type: ignore
     BotMissingRole: "Sorry, I need to be {error.missing_role} to do that!",
-    MissingAnyRole: _missing_any_role,
-    MissingPermissions: _missing_permissions,
+    MissingAnyRole: _missing_any_role,  # type: ignore
+    MissingPermissions: _missing_permissions,  # type: ignore
     MissingRole: "You need to be {error.missing_role} to do that!",
     # Not found
     ChannelNotFound: UNKNOWN_MENTION,

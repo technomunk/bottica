@@ -2,9 +2,10 @@
 
 import logging
 import random
+from asyncio import BaseEventLoop
 from functools import partial
 from os import path
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional, cast
 
 import discord
 import discord.ext.commands as cmd
@@ -30,15 +31,22 @@ _logger = logging.getLogger(__name__)
 class Music(cmd.Cog):
     def __init__(self, bot: cmd.Bot) -> None:
         self.bot = bot
-        self.loader = Downloader(bot.loop)
+        self.loader = Downloader(cast(BaseEventLoop, bot.loop))
         self.song_registry = SongRegistry(SONG_REGISTRY_FILENAME)
         self.contexts: Dict[int, MusicContext] = {}
 
-        self.bot.status_reporters.append(partial(self.status, self))
+        self.bot.status_reporters.append(partial(self.status, self))  # type: ignore
 
     def get_music_context(self, ctx: cmd.Context) -> MusicContext:
+        assert ctx.guild is not None
+        assert isinstance(ctx.channel, discord.TextChannel)
         if ctx.guild.id not in self.contexts:
-            mctx = MusicContext(ctx.guild, ctx.channel, ctx.voice_client, self.song_registry)
+            mctx = MusicContext(
+                ctx.guild,
+                ctx.channel,
+                cast(discord.VoiceClient, ctx.voice_client),
+                self.song_registry,
+            )
             self.contexts[ctx.guild.id] = mctx
         return self.contexts[ctx.guild.id]
 
@@ -73,7 +81,13 @@ class Music(cmd.Cog):
         member: discord.Member,
         before: discord.VoiceState,
         after: discord.VoiceState,
-    ):
+    ) -> None:
+        if not isinstance(before.channel, discord.VoiceChannel):
+            return
+
+        if not isinstance(after.channel, discord.VoiceChannel):
+            return
+
         guild_id = after.channel.guild.id if after.channel is not None else before.channel.guild.id
 
         mctx = self.contexts.get(guild_id)
@@ -98,9 +112,13 @@ class Music(cmd.Cog):
                 mctx.play_next()
 
     def status(self, ctx: cmd.Context) -> Iterable[str]:
+        if ctx.guild is None:
+            return []
+
         mctx = self.contexts.get(ctx.guild.id)
         if mctx is None:
             return []
+
         return (
             f"{len(mctx.song_set)} songs in guild set",
             f"Music mode is `{mctx.select_mode.value}`",
@@ -147,7 +165,7 @@ class Music(cmd.Cog):
         I will join issuer's voice channel if possible.
         """
         mctx = self.get_music_context(ctx)
-        await mctx.join_or_throw(ctx.author.voice.channel)
+        await mctx.join_or_throw(ctx.author.voice.channel)  # type: ignore
         req = await self.loader.get_info(query)
         req_type = req.get("_type", "video")
         if req_type == "playlist":
@@ -163,7 +181,7 @@ class Music(cmd.Cog):
         I will join issuer's voice channel if possible.
         """
         mctx = self.get_music_context(ctx)
-        await mctx.join_or_throw(ctx.author.voice.channel)
+        await mctx.join_or_throw(ctx.author.voice.channel)  # type: ignore
         if mctx.is_radio:
             mctx.select_mode = SongSelectMode.SHUFFLE_QUEUE
         mctx.song_queue.extend(mctx.song_set)
@@ -175,7 +193,7 @@ class Music(cmd.Cog):
     async def radio(self, ctx: cmd.Context):
         """Start radio play in author's voice channel."""
         mctx = self.get_music_context(ctx)
-        await mctx.join_or_throw(ctx.author.voice.channel)
+        await mctx.join_or_throw(ctx.author.voice.channel)  # type: ignore
         mctx.select_mode = SongSelectMode.RADIO
         if not mctx.is_playing():
             mctx.play_next()
@@ -188,17 +206,25 @@ class Music(cmd.Cog):
 
     @cmd.command()
     @cmd.check(check.bot_is_voice_connected)
-    async def pause(self, ctx: cmd.Context):
+    async def pause(self, ctx: cmd.Context) -> None:
         """Pause current playback."""
-        if not ctx.voice_client.is_paused():
-            ctx.voice_client.pause()
+        if ctx.voice_client is None:
+            return
+
+        voice_client = cast(discord.VoiceClient, ctx.voice_client)
+        if not voice_client.is_paused():
+            voice_client.pause()
 
     @cmd.command(aliases=("unpause",))
     @cmd.check(check.bot_is_voice_connected)
-    async def resume(self, ctx: cmd.Context):
+    async def resume(self, ctx: cmd.Context) -> None:
         """Resume paused playback."""
-        if ctx.voice_client.is_paused():
-            ctx.voice_client.resume()
+        if ctx.voice_client is None:
+            return
+
+        voice_client = cast(discord.VoiceClient, ctx.voice_client)
+        if voice_client.is_paused():
+            voice_client.resume()
 
     @cmd.command()
     async def stop(self, ctx: cmd.Context):
@@ -216,8 +242,11 @@ class Music(cmd.Cog):
         mctx.disconnect()
 
     @cmd.command()
-    async def song(self, ctx: cmd.Context, sticky: bool = False):
+    async def song(self, ctx: cmd.Context, sticky: bool = False) -> None:
         """Display information about the current song."""
+        if not isinstance(ctx.channel, discord.TextChannel):
+            return  # TODO: raise a user-friendly error
+
         mctx = self.get_music_context(ctx)
         if mctx.is_playing() and mctx.song_queue.head is not None:
             atask(mctx.display_current_song_info(sticky, ctx.channel), ctx)
@@ -275,8 +304,9 @@ class Music(cmd.Cog):
         if channel is None:
             # rely on exception from provided check
             check.author_is_voice_connected(ctx)
-            channel = ctx.author.voice.channel
-        permissions = channel.permissions_for(ctx.me)
+            channel = ctx.author.voice.channel  # type: ignore
+        channel = cast(discord.VoiceChannel, channel)
+        permissions = channel.permissions_for(ctx.me)  # type: ignore
         if not permissions.connect or not permissions.speak:
             raise BotLacksVoicePermissions(channel)
 
