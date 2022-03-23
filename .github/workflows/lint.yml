@@ -33,7 +33,7 @@ jobs:
 
     - name: Analyse the code with mypy
       run: |
-        mypy src/
+        mypy --namespace-packages src/
     - name: Analyse the code with pylint
       run: |
         pylint src/
