@@ -41,24 +41,24 @@ def keystr(key: SongKey) -> str:
 @dataclass(slots=True)
 class SongInfo:
     domain: str
-    intradomain_id: str
+    id: str
     ext: str
     duration: int
     title: str
 
     @property
     def key(self) -> SongKey:
-        return (self.domain, self.intradomain_id)
+        return (self.domain, self.id)
 
     @property
     def filename(self) -> str:
-        return f"{self.domain}_{self.intradomain_id}.{self.ext}"
+        return f"{self.domain}_{self.id}.{self.ext}"
 
     @property
     def link(self) -> str:
         if self.domain != "youtube":
             raise NotImplementedError("SongInfo::link(domain != youtube)")
-        return f"https://www.{self.domain}.com/watch?v={self.intradomain_id}"
+        return f"https://www.{self.domain}.com/watch?v={self.id}"
 
     @property
     def pretty_link(self) -> str:

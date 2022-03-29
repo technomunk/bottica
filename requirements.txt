@@ -1,5 +1,5 @@
 discord.py[voice]>=1.7.3
-yt-dlp>=2021.12.1
+yt-dlp>=2022.03.08.1
 toml>=0.10.2
 click>=8.0.1
 ffmpeg-normalize>=1.22.4

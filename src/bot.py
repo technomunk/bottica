@@ -31,9 +31,9 @@ _logger = logging.getLogger(__name__)
 
 
 class Bottica(DiscordBot):
-    def __init__(self, command_prefix, help_command=..., description=None, **options):
+    def __init__(self, command_prefix, **options):
         self.status_reporters: List[Callable[[cmd.Context], Iterable[str]]] = []
-        super().__init__(command_prefix, help_command, description, **options)
+        super().__init__(command_prefix, **options)
 
     async def close(self) -> None:
         for cog in self.cogs.values():
