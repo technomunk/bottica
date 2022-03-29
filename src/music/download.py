@@ -1,6 +1,8 @@
 """Song data download utilities"""
 from asyncio import BaseEventLoop
 from logging import getLogger
+from os import path
+from time import sleep
 from typing import Tuple
 
 from yt_dlp import YoutubeDL  # type: ignore
@@ -37,7 +39,9 @@ class Downloader:
     async def download(self, info: dict) -> SongInfo:
         info = await self.loop.run_in_executor(None, lambda: self._loader.process_ie_result(info))
         _logger.debug("download complete")
-        return _extract_song_info(info)
+        song_info = _extract_song_info(info)
+        _ensure_exists(AUDIO_FOLDER + song_info.filename)
+        return song_info
 
 
 def extract_key(info: dict) -> Tuple[str, str]:
@@ -54,3 +58,23 @@ def extract_key(info: dict) -> Tuple[str, str]:
 def _extract_song_info(info: dict) -> SongInfo:
     domain, intradomain_id = extract_key(info)
     return SongInfo(domain, intradomain_id, info["ext"], info["duration"], info["title"])
+
+
+def _ensure_exists(filename: str, timeout: float = 2, poll_rate: float = 0.2) -> None:
+    """
+    Make sure the provided file exists.
+
+    Done because ytdlp does not always synchronize file writes.
+    """
+    if path.exists(filename):
+        return
+
+    total = 0.0
+    while total < timeout:
+        total += poll_rate
+        sleep(poll_rate)
+
+        if path.exists(filename):
+            return
+
+    raise RuntimeError(filename, "does not exist")
