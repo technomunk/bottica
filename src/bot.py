@@ -20,6 +20,7 @@ from infrastructure.error import atask, event_loop, handle_command_error
 from music.cog import Music
 from response import JEALOUS, REACTIONS
 from sass import make_sass, should_sass
+from version import notify_of_new_changes
 
 # Not my fault discord type-info sucks
 # pylint: disable=assigning-non-slot
@@ -33,6 +34,7 @@ _logger = logging.getLogger(__name__)
 class Bottica(DiscordBot):
     def __init__(self, command_prefix, **options):
         self.status_reporters: List[Callable[[cmd.Context], Iterable[str]]] = []
+        self.notify_of_changes = False
         super().__init__(command_prefix, **options)
 
     async def close(self) -> None:
@@ -56,6 +58,10 @@ async def on_ready():
     _logger.debug("guilds:")
     for guild in bot.guilds:
         _logger.debug("%s (id: %d)", guild.name, guild.id)
+
+    if bot.notify_of_changes:
+        await notify_of_new_changes(bot.guilds)
+
     _logger.info("%s is ready", bot.user.name)
 
 
@@ -154,6 +160,9 @@ def run_bot():
 
     register_commands(bot)
     bot.add_cog(Music(bot))
+
+    if config.get("notify_of_changes"):
+        bot.notify_of_changes = True
 
     bot.on_command_error = handle_command_error
     bot.run(args.discord_token or config["discord_token"])

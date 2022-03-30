@@ -14,11 +14,7 @@ from version import BOT_VERSION
 @cmd.command()
 async def status(ctx: cmd.Context):
     """Print the bot status."""
-    lines = [
-        f"Running version `{BOT_VERSION}`",
-        "`purge` is now called `clear`",
-        "And I'm happy I'm here!",
-    ]
+    lines = [f"Running version `{BOT_VERSION}`"]
     for reporter in ctx.bot.status_reporters:  # type: ignore
         lines.extend(reporter(ctx))
     embed = discord.Embed(description="\n".join(lines))
