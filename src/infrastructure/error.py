@@ -56,7 +56,7 @@ async def handle_command_error(ctx: cmd.Context, error: cmd.CommandError):
     atask(ctx.message.remove_reaction(REACTIONS["command_succeeded"], ctx.me))  # type: ignore
     atask(ctx.message.add_reaction(REACTIONS["command_failed"]))  # type: ignore
 
-    if not isinstance(error, cmd.UserInputError):
+    if not isinstance(error, cmd.UserInputError | cmd.CommandNotFound | cmd.CommandOnCooldown):
         capture_exception(error)
 
     response = make_user_friendly(error)
