@@ -6,14 +6,14 @@ Use caution when using while Bottica is running.
 import csv
 from dataclasses import asdict, astuple
 from os import listdir, remove, replace, stat
-from os.path import isfile, splitext
+from os.path import isfile, join, splitext
 from typing import Callable, List, Set, Tuple
 
 import click
 from ffmpeg_normalize import FFmpegNormalize  # type: ignore
 
+from file import AUDIO_FOLDER, GUILD_SET_FOLDER, SONG_REGISTRY_FILENAME
 from infrastructure.util import format_size
-from music.file import AUDIO_FOLDER, GUILD_SET_FOLDER, SONG_REGISTRY_FILENAME
 from music.normalize import DEFAULT_NORMALIZATION_CONFIG, normalize_song
 from music.song import FILE_ENCODING, SongCSVDialect, SongKey, open_song_registry
 from version import BOT_VERSION
@@ -66,11 +66,11 @@ def prune(count: int, unit: str):
         def unlink_predicate(key: SongKey) -> bool:
             return key in songs_to_unlink
 
-        for filepath in listdir(GUILD_SET_FOLDER):
-            _unlink_songs_in(GUILD_SET_FOLDER + filepath, unlink_predicate)
+        for filename in listdir(GUILD_SET_FOLDER):
+            _unlink_songs_in(join(GUILD_SET_FOLDER, filename), unlink_predicate)
         _unlink_songs_in(SONG_REGISTRY_FILENAME, unlink_predicate)
         for filename in files_to_remove:
-            remove(AUDIO_FOLDER + filename)
+            remove(join(AUDIO_FOLDER, filename))
         click.echo(f"Removed {format_size(bytes_removed)}. Have a good day!")
     else:
         click.echo("Operation aborted, all files remain.")
@@ -90,7 +90,7 @@ def clean(verbose: bool):
         writer = csv.writer(wfile, dialect=SongCSVDialect)
         header_written = False
         for song_info in song_registry:
-            if isfile(AUDIO_FOLDER + song_info.filename):
+            if isfile(join(AUDIO_FOLDER, song_info.filename)):
                 linked_filenames.add(song_info.filename)
                 known_songs.add(song_info.key)
                 if not header_written:
@@ -104,13 +104,13 @@ def clean(verbose: bool):
 
     for filename in listdir(AUDIO_FOLDER):
         if filename not in linked_filenames:
-            remove(AUDIO_FOLDER + filename)
+            remove(join(AUDIO_FOLDER, filename))
             if verbose:
                 click.echo(f"Removed {filename} as it's not linked.")
 
-    for filepath in listdir(GUILD_SET_FOLDER):
+    for filename in listdir(GUILD_SET_FOLDER):
         _unlink_songs_in(
-            GUILD_SET_FOLDER + filepath,
+            join(GUILD_SET_FOLDER, filename),
             lambda key: key not in known_songs,
             verbose,
         )

@@ -7,17 +7,18 @@ from typing import Tuple
 
 from yt_dlp import YoutubeDL  # type: ignore
 
-from .file import AUDIO_FOLDER, DATA_FOLDER
+from file import AUDIO_FOLDER, DATA_FOLDER
+
 from .song import SongInfo
 
 _logger = getLogger(__name__)
 
 _DEFAULT_CONFIG = {
     "format": "bestaudio",
-    "outtmpl": AUDIO_FOLDER + "%(extractor)s_%(id)s.%(ext)s",
-    "cachedir": DATA_FOLDER + "dlcache",
+    "outtmpl": path.join(AUDIO_FOLDER, "%(extractor)s_%(id)s.%(ext)s"),
+    "cachedir": path.join(DATA_FOLDER, "dlcache"),
     "ignoreerrors": True,
-    "cookiefile": DATA_FOLDER + "cookies.txt",
+    "cookiefile": path.join(DATA_FOLDER, "cookies.txt"),
     "quiet": True,
     "noplaylist": True,
 }
@@ -40,7 +41,7 @@ class Downloader:
         info = await self.loop.run_in_executor(None, lambda: self._loader.process_ie_result(info))
         _logger.debug("download complete")
         song_info = _extract_song_info(info)
-        _ensure_exists(AUDIO_FOLDER + song_info.filename)
+        _ensure_exists(path.join(AUDIO_FOLDER, song_info.filename))
         return song_info
 
 

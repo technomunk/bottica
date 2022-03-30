@@ -11,6 +11,7 @@ import discord
 import discord.ext.commands as cmd
 
 import response
+from file import GUILD_CONTEXT_FOLDER, SONG_REGISTRY_FILENAME
 from infrastructure.error import atask
 from infrastructure.util import format_duration, has_listening_members, is_listening
 from music import check
@@ -18,7 +19,6 @@ from music import check
 from .context import MusicContext, SongSelectMode
 from .download import Downloader, extract_key
 from .error import AuthorNotInPlayingChannel, BotLacksVoicePermissions
-from .file import GUILD_CONTEXT_FOLDER, SONG_REGISTRY_FILENAME
 from .normalize import normalize_song
 from .song import SongRegistry
 
@@ -53,7 +53,7 @@ class Music(cmd.Cog):
     @cmd.Cog.listener()
     async def on_ready(self):
         for guild in self.bot.guilds:
-            filename = f"{GUILD_CONTEXT_FOLDER}{guild.id}.json"
+            filename = path.join(GUILD_CONTEXT_FOLDER, f"{guild.id}.ctx")
             if path.exists(filename):
                 try:
                     mctx = await MusicContext.resume(self.bot, guild, self.song_registry)

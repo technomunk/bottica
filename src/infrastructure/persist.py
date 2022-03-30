@@ -1,11 +1,16 @@
 """
 Variable persistence across multiple sessions.
+
+A Field is a descriptor for a variable that is picked to a file
+if the owning object's save() method is called.
+
+All fields can be populated with data from file by using Persist.load method.
 """
 
 from __future__ import annotations
 
-import json
 import logging
+import pickle
 from os import path
 from typing import Any, Callable, ClassVar, Generic, List, Optional, Type, TypeVar, cast, overload
 
@@ -15,7 +20,6 @@ ClassT = TypeVar("ClassT", bound=object)
 _logger = logging.getLogger(__name__)
 
 
-# pylint: disable=too-few-public-methods
 class _Missing:
     """Helper marker for undefined default parameter."""
 
@@ -56,8 +60,8 @@ class Persist:
             value = getattr(self, field.name)
             marshalled_data[field.name] = field.converter.to_serial(value, **converter_kwargs)
 
-        with open(filename, "w", encoding="utf8") as json_file:
-            json.dump(marshalled_data, json_file)
+        with open(filename, "wb") as pickle_file:
+            pickle.dump(marshalled_data, pickle_file)
 
         _logger.debug("saved %s", filename)
 
@@ -65,12 +69,13 @@ class Persist:
         """
         Load as many _persist_fields from provided file as possible.
 
+        If the file does not exist all fields with default values will receive said default values.
         Provided converters will be invoked for each field of relevant type.
         """
         marshalled_data = {}
         if path.isfile(filename):
-            with open(filename, "r", encoding="utf8") as json_file:
-                marshalled_data = json.load(json_file)
+            with open(filename, "rb") as pickle_file:
+                marshalled_data = pickle.load(pickle_file)
 
         for field in self._persist_fields:
             if field.name in marshalled_data:
@@ -105,7 +110,7 @@ class Field(Generic[VarT]):
         self.converter = converter
 
     def __set_name__(self, owner: Type[Persist], name: str) -> None:
-        owner._persist_fields.append(self)  # type: ignore
+        owner._persist_fields.append(self)
         self.name = name
 
     @overload

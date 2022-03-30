@@ -1,11 +1,12 @@
 """Old SongInfo structure for migration-capability"""
 import csv
 from dataclasses import asdict, astuple
+from os import path
 
-from music.file import DATA_FOLDER
+from file import DATA_FOLDER
 from music.song import FILE_ENCODING, SongCSVDialect, SongInfo, SongKey
 
-OLD_SONG_REGISTRY_FILENAME = DATA_FOLDER + "songs.txt"
+OLD_SONG_REGISTRY_FILENAME = path.join(DATA_FOLDER, "songs.txt")
 
 
 def convert_old_song_registry(old_filename: str, new_filename: str):

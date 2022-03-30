@@ -7,18 +7,20 @@ from __future__ import annotations
 
 import enum
 import logging
+from os import path
 from typing import Optional, cast
 
 import discord
 
+from file import AUDIO_FOLDER, GUILD_CONTEXT_FOLDER, GUILD_SET_FOLDER
 from infrastructure import converters
+from infrastructure.config import GuildConfig
 from infrastructure.error import atask
 from infrastructure.persist import Field, Persist
 from infrastructure.sticky_message import StickyMessage
 from infrastructure.util import format_duration, has_listening_members
 
 from .error import AuthorNotInPlayingChannel
-from .file import AUDIO_FOLDER, GUILD_CONTEXT_FOLDER, GUILD_SET_FOLDER
 from .song import SongInfo, SongQueue, SongRegistry, SongSet
 
 _logger = logging.getLogger(__name__)
@@ -32,12 +34,12 @@ class SongSelectMode(enum.Enum):
 
 class SelectSong(Persist):
     _select_mode = Field(SongSelectMode.QUEUE, converter=converters.Enum(SongSelectMode))
-    min_repeat_interval = Field(32)
 
     def __init__(self, guild_id: int, registry: SongRegistry) -> None:
         super().__init__()
 
-        self._song_set = SongSet(registry, f"{GUILD_SET_FOLDER}{guild_id}.csv")
+        self._guild_config = GuildConfig(guild_id)
+        self._song_set = SongSet(registry, path.join(GUILD_SET_FOLDER, f"{guild_id}.csv"))
         self._select_queue = SongQueue(registry)
         self._history_queue = SongQueue(registry)
 
@@ -55,7 +57,7 @@ class SelectSong(Persist):
             if self._select_queue.head is not None:
                 self._history_queue.push(self._select_queue.head)
 
-            if len(self._history_queue) > self.min_repeat_interval:
+            if len(self._history_queue) > self._guild_config.min_repeat_interval:
                 song = self._history_queue.pop()
                 assert song is not None
                 self._select_queue.push(song)
@@ -163,7 +165,7 @@ class MusicContext(SelectSong):
 
     @property
     def filename(self) -> str:
-        return f"{GUILD_CONTEXT_FOLDER}{self._guild.id}.json"
+        return path.join(GUILD_CONTEXT_FOLDER, f"{self._guild.id}.ctx")
 
     def is_playing(self) -> bool:
         return self._voice_client is not None and self._voice_client.is_playing()
@@ -268,7 +270,7 @@ class MusicContext(SelectSong):
 
         _logger.debug("playing %s in %s", song.key, self._guild.name)
         self._voice_client.play(
-            discord.FFmpegPCMAudio(f"{AUDIO_FOLDER}{song.filename}", options="-vn"),
+            discord.FFmpegOpusAudio(path.join(AUDIO_FOLDER, f"{song.filename}"), options="-vn"),
             after=handle_after,
         )
         if self.song_message is not None:

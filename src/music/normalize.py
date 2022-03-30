@@ -1,12 +1,13 @@
 """Loudness-normalization utility."""
 import logging
-from os import remove
+from os import path, remove
 from os.path import splitext
 
 import ffmpeg_normalize  # type: ignore
 from ffmpeg_normalize import FFmpegNormalize, MediaFile
 
-from .file import AUDIO_FOLDER
+from file import AUDIO_FOLDER
+
 from .song import SongInfo
 
 _logger = logging.getLogger(__name__)
@@ -33,7 +34,7 @@ def normalize_song(
     keep_old_file: bool = False,
 ):
     ext = "." + config.output_format
-    src_file = AUDIO_FOLDER + song.filename
+    src_file = path.join(AUDIO_FOLDER, song.filename)
     filename, _ = splitext(src_file)
     dst_file = filename + ext
 
