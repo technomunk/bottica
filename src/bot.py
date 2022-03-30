@@ -33,9 +33,10 @@ _logger = logging.getLogger(__name__)
 
 class Bottica(DiscordBot):
     def __init__(self, command_prefix, **options):
-        self.status_reporters: List[Callable[[cmd.Context], Iterable[str]]] = []
-        self.notify_of_changes = False
         super().__init__(command_prefix, **options)
+
+        self.status_reporters: List[Callable[[cmd.Context], Iterable[str]]] = []
+        self.debug = False
 
     async def close(self) -> None:
         for cog in self.cogs.values():
@@ -59,7 +60,7 @@ async def on_ready():
     for guild in bot.guilds:
         _logger.debug("%s (id: %d)", guild.name, guild.id)
 
-    if bot.notify_of_changes:
+    if not bot.debug:
         await notify_of_new_changes(bot.guilds)
 
     _logger.info("%s is ready", bot.user.name)
@@ -161,8 +162,7 @@ def run_bot():
     register_commands(bot)
     bot.add_cog(Music(bot))
 
-    if config.get("notify_of_changes"):
-        bot.notify_of_changes = True
+    bot.debug = bool(config.get("debug", False))
 
     bot.on_command_error = handle_command_error
     bot.run(args.discord_token or config["discord_token"])

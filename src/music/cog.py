@@ -35,7 +35,7 @@ class Music(cmd.Cog):
         self.song_registry = SongRegistry(SONG_REGISTRY_FILENAME)
         self.contexts: Dict[int, MusicContext] = {}
 
-        self.bot.status_reporters.append(partial(self.status, self))  # type: ignore
+        self.bot.status_reporters.append(partial(self.status))  # type: ignore
 
     def get_music_context(self, ctx: cmd.Context) -> MusicContext:
         assert ctx.guild is not None

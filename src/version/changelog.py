@@ -28,6 +28,10 @@ def parse_changes_since(version: VersionInfo = VersionInfo(0)) -> Dict[VersionIn
 
         for line in changelog_file:
             if line.startswith("## "):
+                section_text = section_content.getvalue()
+                if changelog_started and (section_title or section_text):
+                    changes[section_title] = section_text
+
                 if changes:
                     changelog[section_version] = changes
                     changes = {}
@@ -35,6 +39,7 @@ def parse_changes_since(version: VersionInfo = VersionInfo(0)) -> Dict[VersionIn
                 try:
                     section_version = VersionInfo.parse(line.removeprefix("## ").strip())
                     changelog_started = True
+
                     if section_version <= version:
                         return changelog
                 except ValueError:
@@ -53,16 +58,16 @@ def parse_changes_since(version: VersionInfo = VersionInfo(0)) -> Dict[VersionIn
                 section_content = StringIO()
                 continue
 
-            if section_version != _INVALID_VERSION:
-                if line := line.strip():
-                    section_content.write(line)
-                    section_content.write("\n")
+            if line := line.strip():
+                section_content.write(line)
+                section_content.write("\n")
 
         section_text = section_content.getvalue()
-        if section_title or section_text:
+        if changelog_started and (section_title or section_text):
             changes[section_title] = section_text
 
-        changelog[section_version] = changes
+        if changes:
+            changelog[section_version] = changes
 
     return changelog
 

@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 
+## 0.21.1
+
+### Fixed
+
+* I am more chill about having improved now :sweat_smile: Won't spam you of non-existent changes!
+
 ## 0.21.0
 
 ### Added

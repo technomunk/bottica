@@ -22,6 +22,9 @@ async def notify_of_new_changes(guilds: Iterable[discord.Guild]) -> None:
             version = VersionInfo.parse(version_file.read())
 
     changelog = parse_changes_since(version)
+    if not changelog:
+        return
+
     embed = compose_changelog_message(changelog)
     embed.description = str(BOT_VERSION)
 
