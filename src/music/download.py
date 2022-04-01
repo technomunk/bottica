@@ -1,81 +1,92 @@
 """Song data download utilities"""
-from asyncio import BaseEventLoop
+from functools import partial
 from logging import getLogger
 from os import path
-from time import sleep
-from typing import Tuple
+from typing import Iterable, NewType, Optional
 
 from yt_dlp import YoutubeDL  # type: ignore
 
 from file import AUDIO_FOLDER, DATA_FOLDER
+from infrastructure.error import event_loop
+from music.normalize import normalize_song
 
 from .song import SongInfo
 
+ReqInfo = NewType("ReqInfo", dict)
+
 _logger = getLogger(__name__)
 
-_DEFAULT_CONFIG = {
-    "format": "bestaudio",
-    "outtmpl": path.join(AUDIO_FOLDER, "%(extractor)s_%(id)s.%(ext)s"),
-    "cachedir": path.join(DATA_FOLDER, "dlcache"),
-    "ignoreerrors": True,
-    "cookiefile": path.join(DATA_FOLDER, "cookies.txt"),
-    "quiet": True,
-    "noplaylist": True,
-}
+_loader = YoutubeDL(
+    {
+        "format": "bestaudio",
+        "outtmpl": path.join(AUDIO_FOLDER, "%(extractor)s_%(id)s.%(ext)s"),
+        "cachedir": path.join(DATA_FOLDER, "dlcache"),
+        "ignoreerrors": True,
+        "cookiefile": path.join(DATA_FOLDER, "cookies.txt"),
+        "quiet": True,
+        "noplaylist": True,
+    }
+)
 
 
-class Downloader:
-    # I know the config is not mutated by the method and I prefer non-optional arguments
-    # pylint: disable=dangerous-default-value
-    def __init__(self, loop: BaseEventLoop, config: dict = _DEFAULT_CONFIG) -> None:
-        self._loader = YoutubeDL(config)
-        self.loop = loop
+async def streamable_url(song: SongInfo, cache: bool) -> str:
+    info = await event_loop.run_in_executor(
+        None,
+        partial(
+            _loader.extract_info,
+            song.link,
+            download=False,
+        ),
+    )
 
-    async def get_info(self, url: str) -> dict:
-        return await self.loop.run_in_executor(
-            None,
-            lambda: self._loader.extract_info(url, download=False, process=False),
-        )
+    if cache:
+        # Run the download completely asynchronously without blocking
+        task = event_loop.run_in_executor(None, partial(_download_and_normalize, info))
+        event_loop.create_task(task)
 
-    async def download(self, info: dict) -> SongInfo:
-        info = await self.loop.run_in_executor(None, lambda: self._loader.process_ie_result(info))
-        _logger.debug("download complete")
-        song_info = _extract_song_info(info)
-        _ensure_exists(path.join(AUDIO_FOLDER, song_info.filename))
-        return song_info
+    return info.get("url", "")
 
 
-def extract_key(info: dict) -> Tuple[str, str]:
-    """
-    Generate key for a given song.
-    """
+async def process_request(query: str) -> Iterable[SongInfo]:
+    """Process provided query and get the songs it requests in order."""
+    req_info = await event_loop.run_in_executor(
+        None,
+        partial(
+            _loader.extract_info,
+            query,
+            download=False,
+            process=False,
+        ),
+    )
+
+    req_type = req_info.get("_type", "video")
+
+    if req_type == "playlist":
+        return filter(None, (_extract_song_info(req) for req in req_info["entries"]))
+
+    song_info = _extract_song_info(req_info)
+    return [song_info] if song_info else []
+
+
+def _extract_song_info(info: ReqInfo) -> Optional[SongInfo]:
     info_type = info.get("_type", "video")
     if info_type not in ("video", "url"):
-        raise NotImplementedError(f"genname(info['_type']: '{info_type}')")
+        return None
+
     domain = info.get("ie_key", info.get("extractor_key")).lower()
-    return (domain, info["id"])
+    return SongInfo(
+        domain,
+        id=info["id"],
+        duration=info["duration"],
+        title=info["title"],
+    )
 
 
-def _extract_song_info(info: dict) -> SongInfo:
-    domain, intradomain_id = extract_key(info)
-    return SongInfo(domain, intradomain_id, info["ext"], info["duration"], info["title"])
-
-
-def _ensure_exists(filename: str, timeout: float = 2, poll_rate: float = 0.2) -> None:
-    """
-    Make sure the provided file exists.
-
-    Done because ytdlp does not always synchronize file writes.
-    """
-    if path.exists(filename):
+def _download_and_normalize(info: ReqInfo) -> None:
+    _loader.process_ie_result(info, download=True)
+    song = _extract_song_info(info)
+    if song is None:
+        _logger.error("could not extract song info for %s", info.get("id"))
         return
 
-    total = 0.0
-    while total < timeout:
-        total += poll_rate
-        sleep(poll_rate)
-
-        if path.exists(filename):
-            return
-
-    raise RuntimeError(filename, "does not exist")
+    normalize_song(song)

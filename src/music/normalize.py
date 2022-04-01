@@ -8,7 +8,7 @@ from ffmpeg_normalize import FFmpegNormalize, MediaFile
 
 from file import AUDIO_FOLDER
 
-from .song import SongInfo
+from .song import EXTENSION, SongInfo
 
 _logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ DEFAULT_NORMALIZATION_CONFIG = {
     "subtitle_disable": True,
     "metadata_disable": True,
     "chapters_disable": True,
-    "output_format": "opus",
+    "output_format": EXTENSION,
 }
 _default_config = FFmpegNormalize(**DEFAULT_NORMALIZATION_CONFIG)
 
@@ -38,6 +38,10 @@ def normalize_song(
     filename, _ = splitext(src_file)
     dst_file = filename + ext
 
+    if path.exists(dst_file):
+        _logger.warning("Song already normalized: %s", dst_file)
+        return
+
     _logger.debug("Normalizing %s => %s", src_file, dst_file)
     normalization = MediaFile(config, src_file, dst_file)
     normalization.run_normalization()
@@ -47,5 +51,3 @@ def normalize_song(
             remove(src_file)
         except FileNotFoundError:
             pass
-
-    song.ext = config.output_format

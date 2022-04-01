@@ -11,7 +11,7 @@ from typing import ClassVar, Dict, Type, TypeVar
 
 from file import GUILD_CONFIG_FOLDER
 
-from .validators import MinMax, ValidationError
+from .validators import Min, MinMax, ValidationError
 
 VarT = TypeVar("VarT")
 
@@ -20,9 +20,10 @@ _logger = logging.getLogger(__name__)
 
 class GuildConfig:
     __instances: ClassVar[Dict[int, GuildConfig]] = {}
-    __fields: ClassVar = ["min_repeat_interval"]
+    __fields: ClassVar = ["min_repeat_interval", "max_cached_duration"]
 
     min_repeat_interval = MinMax(32, 1, 1024)
+    max_cached_duration = Min(600, -1)
 
     def __new__(cls: Type[GuildConfig], guild_id: int) -> GuildConfig:
         if config := cls.__instances.get(guild_id):

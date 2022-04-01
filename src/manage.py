@@ -119,8 +119,7 @@ def clean(verbose: bool):
 @cli.command()
 @click.option("-v", "--verbose", is_flag=True, help="Print normalized entries.")
 @click.option("--keep-file", is_flag=True, help="Keep existing files on disk.")
-@click.option("-f", "--force", is_flag=True, help="Forcefully override all files (opus included).")
-def normalize(verbose: bool, keep_file: bool, force: bool):
+def normalize(verbose: bool, keep_file: bool):
     """Loudness-normalize all songs in the audio folder."""
     normalization_config = FFmpegNormalize(
         print_stats=verbose,
@@ -137,12 +136,7 @@ def normalize(verbose: bool, keep_file: bool, force: bool):
         writer = csv.writer(new_song_file, dialect=SongCSVDialect)
         header_written = False
         for song_info in song_registry:
-            try:
-                if song_info.ext != normalization_config.output_format or force:
-                    normalize_song(song_info, normalization_config, keep_file)
-            # pylint: disable=broad-except
-            except Exception as e:
-                print(e)
+            normalize_song(song_info, normalization_config, keep_file)
 
             if not header_written:
                 writer.writerow(asdict(song_info).keys())

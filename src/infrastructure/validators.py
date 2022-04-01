@@ -67,3 +67,13 @@ class MinMax(Validator[LessThanT]):
     def validate(self, value: LessThanT) -> None:
         if value < self.min or self.max < value:
             raise ValidationError(f"Provided value has to be between {self.min} and {self.max}")
+
+
+class Min(Validator[LessThanT]):
+    def __init__(self, default: LessThanT, min_val: LessThanT) -> None:
+        super().__init__(default)
+        self.min = min_val
+
+    def validate(self, value: LessThanT) -> None:
+        if value < self.min:
+            raise ValidationError(f"Provided value has to be larger than {self.min}")

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import enum
 import logging
+from functools import partial
 from os import path
 from typing import Optional, cast
 
@@ -19,11 +20,15 @@ from infrastructure.error import atask
 from infrastructure.persist import Field, Persist
 from infrastructure.sticky_message import StickyMessage
 from infrastructure.util import format_duration, has_listening_members
+from music.download import streamable_url
 
 from .error import AuthorNotInPlayingChannel
 from .song import SongInfo, SongQueue, SongRegistry, SongSet
 
 _logger = logging.getLogger(__name__)
+
+
+FFMPEG_OPTIONS: dict = {"options": "-vn"}
 
 
 class SongSelectMode(enum.Enum):
@@ -132,6 +137,7 @@ class MusicContext(SelectSong):
         self._guild = guild
 
         self._voice_client = voice_client
+        self._guild_config = GuildConfig(guild.id)
 
         if text_channel is not None:
             self.text_channel = text_channel
@@ -150,7 +156,7 @@ class MusicContext(SelectSong):
 
         if mctx._voice_client is not None:
             _logger.debug("resuming playback")
-            mctx.play_next()
+            await mctx.play_next()
 
         return mctx
 
@@ -217,7 +223,7 @@ class MusicContext(SelectSong):
                 self.song_message = None
             atask(self.text_channel.send(embed=embed))
 
-    def play_next(self) -> None:
+    async def play_next(self) -> None:
         """
         Play the next song in the queue.
         If I'm not playing I will join the issuer's voice channel.
@@ -249,35 +255,45 @@ class MusicContext(SelectSong):
         if self.is_playing():
             self._voice_client.pause()
 
-        def handle_after(error):
-            if error is not None:
-                _logger.error("encountered error: %s", error)
-                return
-
-            if self._voice_client is None:
-                # Bottica has already disconnected, no need to raise an error.
-                return
-
-            # queue still includes the current song, so check if length is > 1
-            if len(self._select_queue) > 1:
-                self.play_next()
-            else:
-                if self.song_message is not None:
-                    self.song_message.delete()
-                    self.song_message = None
-                self._select_queue.clear()
-                self.disconnect()
-
         _logger.debug("playing %s in %s", song.key, self._guild.name)
-        self._voice_client.play(
-            discord.FFmpegOpusAudio(path.join(AUDIO_FOLDER, f"{song.filename}"), options="-vn"),
-            after=handle_after,
-        )
+        audio = await self._audio_source(song)
+        self._voice_client.play(audio, after=partial(self._handle_after))
+
         if self.song_message is not None:
             atask(self.display_current_song_info(True))
+
+    def _handle_after(self, error: Optional[Exception]) -> None:
+        """Command ran after playback has stopped"""
+        if error is not None:
+            _logger.error("encountered error: %s", error)
+            return
+
+        if self._voice_client is None:
+            # Bottica has already disconnected, no need to raise an error.
+            return
+
+        # queue still includes the current song, so check if length is > 1
+        if len(self._select_queue) > 1:
+            atask(self.play_next())
+        else:
+            if self.song_message is not None:
+                self.song_message.delete()
+                self.song_message = None
+            self._select_queue.clear()
+            self.disconnect()
 
     @property
     def voice_channel(self) -> Optional[discord.VoiceChannel]:
         if self._voice_client is None:
             return None
         return cast(discord.VoiceChannel, self._voice_client.channel)
+
+    async def _audio_source(self, song: SongInfo) -> discord.FFmpegAudio:
+        filepath = path.join(AUDIO_FOLDER, song.filename)
+        if path.exists(filepath):
+            return discord.FFmpegOpusAudio(filepath, **FFMPEG_OPTIONS)
+
+        cache = song.duration <= self._guild_config.max_cached_duration
+        url = await streamable_url(song, cache)
+
+        return discord.FFmpegPCMAudio(url, **FFMPEG_OPTIONS)

@@ -46,9 +46,9 @@ def convert_old_song_set(old_filename: str, new_filename: str):
 
 
 def _parse_old_song_line(line: str) -> SongInfo:
-    domain, intradomain_id, ext, dur, title = line.strip().split(maxsplit=4)
+    domain, intradomain_id, _, dur, title = line.strip().split(maxsplit=4)
     duration = int(dur)
-    return SongInfo(domain, intradomain_id, ext, duration, title)
+    return SongInfo(domain, intradomain_id, duration, title)
 
 
 def _parse_old_song_key(line: str) -> SongKey:

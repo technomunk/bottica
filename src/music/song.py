@@ -15,10 +15,14 @@ from typing import Deque, Dict, Generator, Iterable, Optional, Set, Tuple, cast
 from dataclass_csv import DataclassReader
 
 FILE_ENCODING = "utf8"
+EXTENSION = "opus"
+FFMPEG_OPTIONS = {"options": "-vn"}
 
 SongKey = Tuple[str, str]
 
 _logger = logging.getLogger(__name__)
+
+_LINKS = {"youtube": "https://www.youtube.com/watch?v={.id}"}
 
 
 # csv.Dialect be like that
@@ -42,7 +46,6 @@ def keystr(key: SongKey) -> str:
 class SongInfo:
     domain: str
     id: str
-    ext: str
     duration: int
     title: str
 
@@ -52,13 +55,15 @@ class SongInfo:
 
     @property
     def filename(self) -> str:
-        return f"{self.domain}_{self.id}.{self.ext}"
+        return f"{self.domain}_{self.id}.{EXTENSION}"
 
     @property
     def link(self) -> str:
-        if self.domain != "youtube":
-            raise NotImplementedError("SongInfo::link(domain != youtube)")
-        return f"https://www.{self.domain}.com/watch?v={self.id}"
+        pretty_link = _LINKS.get(self.domain)
+        if pretty_link is None:
+            raise NotImplementedError("SongInfo::link", self.domain)
+
+        return pretty_link.format(self)
 
     @property
     def pretty_link(self) -> str:
@@ -81,13 +86,13 @@ class SongRegistry:
     """
 
     def __init__(self, filename: str) -> None:
-        self._data: Dict[SongKey, Tuple[str, int, str]] = {}
+        self._data: Dict[SongKey, Tuple[int, str]] = {}
         self._filename = filename
         self._header_written = False
         if path.exists(filename):
             with open_song_registry(filename) as song_registry:
                 for song in song_registry:
-                    self._data[song.key] = (song.ext, song.duration, song.title)
+                    self._data[song.key] = (song.duration, song.title)
             self._header_written = True
         else:
             with open(filename, "w", encoding=FILE_ENCODING) as file:
@@ -106,16 +111,16 @@ class SongRegistry:
 
     def get(self, key: SongKey) -> Optional[SongInfo]:
         domain, intradomain_id = key
-        ext_title = self._data.get(key)
-        if ext_title:
-            return SongInfo(domain, intradomain_id, *ext_title)
+        other_fields = self._data.get(key)
+        if other_fields:
+            return SongInfo(domain, intradomain_id, *other_fields)
         return None
 
     def __iter__(self) -> Generator[SongInfo, None, None]:
         return (self[key] for key in self._data)
 
     def put(self, song: SongInfo) -> None:
-        self._data[song.key] = (song.ext, song.duration, song.title)
+        self._data[song.key] = (song.duration, song.title)
         with open(self._filename, "a", encoding=FILE_ENCODING) as file:
             writer = csv.writer(file, dialect=SongCSVDialect)
             if not self._header_written:

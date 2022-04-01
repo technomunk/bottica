@@ -2,10 +2,9 @@
 
 import logging
 import random
-from asyncio import BaseEventLoop
 from functools import partial
 from os import path
-from typing import Dict, Iterable, List, Optional, cast
+from typing import Dict, Iterable, Optional, cast
 
 import discord
 import discord.ext.commands as cmd
@@ -17,9 +16,8 @@ from infrastructure.util import format_duration, has_listening_members, is_liste
 from music import check
 
 from .context import MusicContext, SongSelectMode
-from .download import Downloader, extract_key
+from .download import process_request
 from .error import AuthorNotInPlayingChannel, BotLacksVoicePermissions
-from .normalize import normalize_song
 from .song import SongRegistry
 
 ALLOWED_INFO_TYPES = ("video", "url")
@@ -31,7 +29,6 @@ _logger = logging.getLogger(__name__)
 class Music(cmd.Cog):
     def __init__(self, bot: cmd.Bot) -> None:
         self.bot = bot
-        self.loader = Downloader(cast(BaseEventLoop, bot.loop))
         self.song_registry = SongRegistry(SONG_REGISTRY_FILENAME)
         self.contexts: Dict[int, MusicContext] = {}
 
@@ -124,39 +121,6 @@ class Music(cmd.Cog):
             f"Music mode is `{mctx.select_mode.value}`",
         )
 
-    async def _queue_audio(self, ctx: cmd.Context, infos: List[dict]):
-        _logger.debug("queueing %s", "playlist" if len(infos) > 1 else "song")
-        mctx = self.get_music_context(ctx)
-
-        if mctx.is_shuffling and not mctx.is_playing() and len(infos) > 1:
-            _logger.debug("randomizing first song")
-            idx = random.randrange(len(infos))
-            if idx != 0:
-                infos[0], infos[idx] = infos[idx], infos[0]
-
-        for info in infos:
-            if info.get("_type", "video") not in ALLOWED_INFO_TYPES:
-                embed = discord.Embed(
-                    description=f"Skipping {info.get('url')} as it is not a video."
-                )
-                atask(ctx.reply(embed=embed))
-                _logger.warning("Skipping %s as it is a %s", info.get("url"), info["_type"])
-                continue
-
-            key = extract_key(info)
-            song = self.song_registry.get(key)
-            if song is None:
-                _logger.debug("downloading '%s'", key)
-                song = await self.loader.download(info)
-                await self.bot.loop.run_in_executor(None, partial(normalize_song, song))
-                self.song_registry.put(song)
-
-            if mctx.song_set.add(song) or not mctx.is_radio:
-                mctx.song_queue.push(song)
-
-            if not mctx.is_playing():
-                mctx.play_next()
-
     @cmd.command(aliases=("p",))
     @cmd.check(check.bot_has_voice_permission_in_author_channel)
     async def play(self, ctx: cmd.Context, query: str):
@@ -166,12 +130,24 @@ class Music(cmd.Cog):
         """
         mctx = self.get_music_context(ctx)
         await mctx.join_or_throw(ctx.author.voice.channel)  # type: ignore
-        req = await self.loader.get_info(query)
-        req_type = req.get("_type", "video")
-        if req_type == "playlist":
-            atask(self._queue_audio(ctx, list(entry for entry in req["entries"])), ctx)
-        else:
-            atask(self._queue_audio(ctx, [req]), ctx)
+
+        songs = await process_request(query)
+        songs = list(songs)
+
+        if mctx.is_shuffling and not mctx.is_playing() and len(songs) > 1:
+            _logger.debug("randomizing first song")
+            idx = random.randrange(len(songs))
+            if idx != 0:
+                songs[0], songs[idx] = songs[idx], songs[0]
+
+        for song in songs:
+            self.song_registry.put(song)
+
+            if mctx.song_set.add(song) or not mctx.is_radio:
+                mctx.song_queue.push(song)
+
+            if not mctx.is_playing():
+                await mctx.play_next()
 
     @cmd.command(aliases=("pa",))
     @cmd.check(check.bot_has_voice_permission_in_author_channel)
