@@ -31,6 +31,7 @@ def parse_changes_since(version: VersionInfo = VersionInfo(0)) -> Dict[VersionIn
                 section_text = section_content.getvalue()
                 if changelog_started and (section_title or section_text):
                     changes[section_title] = section_text
+                    section_content = StringIO()
 
                 if changes:
                     changelog[section_version] = changes
