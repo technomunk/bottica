@@ -180,7 +180,7 @@ def _gather_songs_larger_than(min_size: int) -> Tuple[Set[SongKey], List[str], i
     bytes_removed = 0
     with open_song_registry(SONG_REGISTRY_FILENAME) as song_registry:
         for song_info in song_registry:
-            filepath = AUDIO_FOLDER + song_info.filename
+            filepath = join(AUDIO_FOLDER, song_info.filename)
             file_size = stat(filepath).st_size
             if file_size >= min_size:
                 songs_to_remove.add(song_info.key)
