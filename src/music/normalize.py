@@ -43,6 +43,9 @@ def normalize_song(
     normalization.run_normalization()
 
     if not keep_old_file:
-        remove(src_file)
+        try:
+            remove(src_file)
+        except FileNotFoundError:
+            pass
 
     song.ext = config.output_format
