@@ -8,7 +8,7 @@ from ffmpeg_normalize import FFmpegNormalize, MediaFile
 
 from file import AUDIO_FOLDER
 
-from .song import EXTENSION, SongInfo
+from .song import EXTENSION
 
 _logger = logging.getLogger(__name__)
 
@@ -29,12 +29,12 @@ _default_config = FFmpegNormalize(**DEFAULT_NORMALIZATION_CONFIG)
 
 
 def normalize_song(
-    song: SongInfo,
+    filename: str,
     config: FFmpegNormalize = _default_config,
     keep_old_file: bool = False,
 ):
     ext = "." + config.output_format
-    src_file = path.join(AUDIO_FOLDER, song.filename)
+    src_file = path.join(AUDIO_FOLDER, filename)
     filename, _ = splitext(src_file)
     dst_file = filename + ext
 

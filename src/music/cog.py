@@ -162,7 +162,7 @@ class Music(cmd.Cog):
             mctx.select_mode = SongSelectMode.SHUFFLE_QUEUE
         mctx.song_queue.extend(mctx.song_set)
         if not mctx.is_playing():
-            mctx.play_next()
+            await mctx.play_next()
 
     @cmd.command()
     @cmd.check(check.bot_has_voice_permission_in_author_channel)
@@ -172,7 +172,7 @@ class Music(cmd.Cog):
         await mctx.join_or_throw(ctx.author.voice.channel)  # type: ignore
         mctx.select_mode = SongSelectMode.RADIO
         if not mctx.is_playing():
-            mctx.play_next()
+            await mctx.play_next()
 
     @cmd.command()
     async def reset(self, ctx: cmd.Context):
@@ -272,7 +272,7 @@ class Music(cmd.Cog):
         mctx = self.get_music_context(ctx)
         if not mctx.is_playing():
             atask(ctx.reply("I'm not playing anything." + random.choice(response.FAILS)))
-        mctx.play_next()
+        await mctx.play_next()
 
     @cmd.command(aliases=("j",))
     async def join(self, ctx: cmd.Context, channel: Optional[discord.VoiceChannel] = None):

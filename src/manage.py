@@ -6,15 +6,13 @@ Use caution when using while Bottica is running.
 import csv
 from dataclasses import asdict, astuple
 from os import listdir, remove, replace, stat
-from os.path import isfile, join, splitext
+from os.path import isfile, join
 from typing import Callable, List, Set, Tuple
 
 import click
-from ffmpeg_normalize import FFmpegNormalize  # type: ignore
 
 from file import AUDIO_FOLDER, GUILD_SET_FOLDER, SONG_REGISTRY_FILENAME
 from infrastructure.util import format_size
-from music.normalize import DEFAULT_NORMALIZATION_CONFIG, normalize_song
 from music.song import FILE_ENCODING, SongCSVDialect, SongKey, open_song_registry
 from version import BOT_VERSION
 from version.migrate import MIGRATIONS
@@ -114,37 +112,6 @@ def clean(verbose: bool):
             lambda key: key not in known_songs,
             verbose,
         )
-
-
-@cli.command()
-@click.option("-v", "--verbose", is_flag=True, help="Print normalized entries.")
-@click.option("--keep-file", is_flag=True, help="Keep existing files on disk.")
-def normalize(verbose: bool, keep_file: bool):
-    """Loudness-normalize all songs in the audio folder."""
-    normalization_config = FFmpegNormalize(
-        print_stats=verbose,
-        debug=verbose,
-        **DEFAULT_NORMALIZATION_CONFIG,
-    )
-
-    registry_filename, _ = splitext(SONG_REGISTRY_FILENAME)
-    new_registry_filename = registry_filename + "_norm.csv"
-    with (
-        open_song_registry(SONG_REGISTRY_FILENAME) as song_registry,
-        open(new_registry_filename, "w", encoding=FILE_ENCODING) as new_song_file,
-    ):
-        writer = csv.writer(new_song_file, dialect=SongCSVDialect)
-        header_written = False
-        for song_info in song_registry:
-            normalize_song(song_info, normalization_config, keep_file)
-
-            if not header_written:
-                writer.writerow(asdict(song_info).keys())
-
-            writer.writerow(astuple(song_info))
-
-    if not keep_file:
-        replace(new_registry_filename, SONG_REGISTRY_FILENAME)
 
 
 @cli.command()

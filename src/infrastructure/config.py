@@ -30,7 +30,9 @@ class GuildConfig:
             return config
 
         _logger.debug("allocating new guild config")
-        return super().__new__(cls)
+        config = super().__new__(cls)
+        cls.__instances[guild_id] = config
+        return config
 
     def __init__(self, guild_id: int) -> None:
         self.guild_id = guild_id

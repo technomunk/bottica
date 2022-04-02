@@ -7,7 +7,7 @@ from typing import Iterable, NewType, Optional
 from yt_dlp import YoutubeDL  # type: ignore
 
 from file import AUDIO_FOLDER, DATA_FOLDER
-from infrastructure.error import event_loop
+from infrastructure.error import atask, event_loop
 from music.normalize import normalize_song
 
 from .song import SongInfo
@@ -42,7 +42,7 @@ async def streamable_url(song: SongInfo, cache: bool) -> str:
     if cache:
         # Run the download completely asynchronously without blocking
         task = event_loop.run_in_executor(None, partial(_download_and_normalize, info))
-        event_loop.create_task(task)
+        atask(task)
 
     return info.get("url", "")
 
@@ -83,10 +83,11 @@ def _extract_song_info(info: ReqInfo) -> Optional[SongInfo]:
 
 
 def _download_and_normalize(info: ReqInfo) -> None:
-    _loader.process_ie_result(info, download=True)
-    song = _extract_song_info(info)
-    if song is None:
-        _logger.error("could not extract song info for %s", info.get("id"))
+    ie_info = _loader.process_ie_result(info, download=True)
+    filename = ie_info["requested_downloads"][0]["filepath"]
+
+    if not path.exists(filename):
+        _logger.error("Could not download %s", filename)
         return
 
-    normalize_song(song)
+    normalize_song(filename)

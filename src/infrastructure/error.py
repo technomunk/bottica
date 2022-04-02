@@ -3,7 +3,7 @@
 import asyncio
 import logging
 from asyncio.exceptions import CancelledError
-from typing import Coroutine, Optional
+from typing import Awaitable, Optional
 
 import discord.ext.commands as cmd
 from discord import Embed
@@ -17,7 +17,7 @@ _logger = logging.getLogger(__name__)
 event_loop = asyncio.get_event_loop()
 
 
-async def safe_coro(coroutine: Coroutine, ctx: Optional[cmd.Context] = None):
+async def safe_task(coroutine: Awaitable, ctx: Optional[cmd.Context] = None):
     # We definitely want to catch all non-exit errors for sentry and robustness
     # pylint: disable=broad-except
     try:
@@ -44,11 +44,11 @@ async def safe_coro(coroutine: Coroutine, ctx: Optional[cmd.Context] = None):
             atask(ctx.message.reply(embed=embed))
 
 
-def atask(coroutine: Coroutine, ctx: Optional[cmd.Context] = None):
+def atask(awaitable: Awaitable, ctx: Optional[cmd.Context] = None):
     """
     Schedule a coroutine to be executed on bot's event loop without awaiting its result.
     """
-    event_loop.create_task(safe_coro(coroutine, ctx))
+    event_loop.create_task(safe_task(awaitable, ctx))
 
 
 async def handle_command_error(ctx: cmd.Context, error: cmd.CommandError):
