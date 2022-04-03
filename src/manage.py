@@ -18,6 +18,7 @@ from bot import run_bot
 from file import AUDIO_FOLDER, GUILD_SET_FOLDER, SONG_REGISTRY_FILENAME
 from infrastructure.util import format_size
 from music.song import FILE_ENCODING, SongCSVDialect, SongKey, open_song_registry
+from release import release
 from version import BOT_VERSION
 from version.migrate import MIGRATIONS
 
@@ -31,9 +32,12 @@ MULTIPLIERS = {
 
 
 @click.group()
-def cli() -> None:
+def cli() -> int:
     """Bottica management CLI."""
     return 0
+
+
+cli.add_command(release)
 
 
 @cli.command()
@@ -121,16 +125,12 @@ def clean(verbose: bool) -> None:
 
 
 @cli.command()
-@click.argument(
-    "version",
-    type=str,
-    shell_complete=lambda *_: MIGRATIONS.keys(),
-)
+@click.argument("version", type=click.Choice(MIGRATIONS.keys()))
 @click.option("--keep-files", is_flag=True, help="Keep old files for extra safety.")
 def migrate(version: str, keep_files: bool) -> None:
     migration_procedure = MIGRATIONS.get(version)
     if not migration_procedure:
-        print("Unknown migration version. Must be one of ", MIGRATIONS.keys())
+        click.echo(f"Unknown migration version. Must be one of {MIGRATIONS.keys()}")
         return
 
     files_to_remove = migration_procedure()
@@ -138,7 +138,7 @@ def migrate(version: str, keep_files: bool) -> None:
         for filename in files_to_remove:
             remove(filename)
 
-    print("Migration", version, "=>", BOT_VERSION, "complete")
+    click.echo(f"Migration {version} => {BOT_VERSION} complete")
 
 
 @cli.command()
@@ -181,7 +181,7 @@ def run(discord_token: str, sentry_token: str, log: str, debug: bool) -> None:
 
     # set up logging
     log_level = log or config.get("log") or logging.INFO
-    print("set logging level to", log_level)
+    click.echo(f"set logging level to {log_level}")
     logging.basicConfig(
         format="%(asctime)s:%(levelname)s:%(name)s:%(funcName)s: %(message)s",
         level=log_level,

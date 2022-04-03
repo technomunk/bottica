@@ -29,14 +29,13 @@ _default_config = FFmpegNormalize(**DEFAULT_NORMALIZATION_CONFIG)
 
 
 def normalize_song(
-    filename: str,
+    src_file: str,
     config: FFmpegNormalize = _default_config,
     keep_old_file: bool = False,
 ):
-    ext = "." + config.output_format
-    src_file = path.join(AUDIO_FOLDER, filename)
-    filename, _ = splitext(src_file)
-    dst_file = filename + ext
+    filename = path.basename(src_file)
+    name, _ = splitext(filename)
+    dst_file = path.join(AUDIO_FOLDER, f"{name}.{config.output_format}")
 
     if path.exists(dst_file):
         _logger.warning("Song already normalized: %s", dst_file)

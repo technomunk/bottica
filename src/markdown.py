@@ -46,9 +46,12 @@ class Markdown:
     def __iter__(self) -> Iterator[Markdown]:
         return iter(self.subsections)
 
+    def __bool__(self) -> bool:
+        return bool(self.content) and bool(self.subsections)
+
     def compose_content(
         self,
-        result_str: Optional[StringIO] = None,
+        buffer: Optional[TextIOWrapper] = None,
         include_heading: bool = True,
     ) -> str:
         """
@@ -57,13 +60,14 @@ class Markdown:
         If a string-io object is provided it will be populated
         with content instead of returning a string.
         """
-        result = result_str or StringIO()
+        if buffer is None:
+            result: TextIOWrapper = StringIO()
+        else:
+            result = buffer
 
         if all([include_heading, self.heading, self.heading != " "]):
             result.write(self.heading)
-            result.write("\n")
-            if self.content:
-                result.write("\n")
+            result.write("\n\n")
 
         if self.content:
             result.write(self.content)
@@ -73,7 +77,7 @@ class Markdown:
             subsection.compose_content(result)
 
         # avoid allocating a string object without need
-        return "" if result_str else result.getvalue()
+        return result.getvalue() if buffer is None else ""  # type: ignore
 
     @property
     def heading(self) -> str:
