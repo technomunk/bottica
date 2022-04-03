@@ -21,7 +21,9 @@ jobs:
           cache: "poetry"
 
       - name: Install dependencies
-        run: poetry install
+        run: |
+          poetry use python
+          poetry install
 
       - name: Check flake8 version
         run: |
