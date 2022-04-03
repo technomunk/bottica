@@ -20,12 +20,6 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: "poetry"
 
-      - name: Set python version
-        run: |
-          poetry env use python
-          poetry run flake8 --version
-          poetry run python -V
-
       - name: Install dependencies
         run: poetry install
 
