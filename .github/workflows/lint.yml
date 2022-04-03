@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Set up Poetry
+      - name: Install poetry
         run: pipx install poetry
 
       - name: Set up Python ${{ matrix.python-version }}
@@ -20,17 +20,14 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: "poetry"
 
-      - name: Set python version
-        run: poetry env use python
-
       - name: Install dependencies
-        run: poetry install
+        run: |
+          poetry env use 3.10
+          poetry install
 
-      - name: Perform Flake8 analysis
-        run: poetry run flake8 src/
-      - name: Perform mypy analysis
-        run: poetry run mypy --namespace-packages src/
-      - name: Perform Pylint analysis
-        run: poetry run pylint src/
-      - name: Make sure code adheres to black style
-        run: poetry run black --check src/
+      - name: Run linting analysis
+        run: |
+          poetry run flake8 src/
+          poetry run mypy --namespace-packages src/
+          poetry run pylint src/
+          poetry run black --check src/
