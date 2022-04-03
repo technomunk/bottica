@@ -125,7 +125,7 @@ def clean(verbose: bool) -> None:
 
 
 @cli.command()
-@click.argument("version", type=click.Choice(MIGRATIONS.keys()))
+@click.argument("version", type=click.Choice(list(MIGRATIONS.keys())))
 @click.option("--keep-files", is_flag=True, help="Keep old files for extra safety.")
 def migrate(version: str, keep_files: bool) -> None:
     migration_procedure = MIGRATIONS.get(version)

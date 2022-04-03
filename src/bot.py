@@ -105,5 +105,5 @@ def run_bot(discord_token: str = "", debug: bool = False) -> None:
 
     bot.debug = debug
 
-    bot.on_command_error = handle_command_error
+    bot.on_command_error = handle_command_error  # type: ignore
     bot.run(discord_token)

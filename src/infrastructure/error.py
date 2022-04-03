@@ -51,7 +51,7 @@ def atask(awaitable: Awaitable, ctx: Optional[cmd.Context] = None):
     event_loop.create_task(safe_task(awaitable, ctx))
 
 
-async def handle_command_error(ctx: cmd.Context, error: cmd.CommandError):
+async def handle_command_error(ctx: cmd.Context, error: cmd.CommandError) -> None:
     _logger.exception(error, stacklevel=2)
     atask(ctx.message.remove_reaction(REACTIONS["command_succeeded"], ctx.me))  # type: ignore
     atask(ctx.message.add_reaction(REACTIONS["command_failed"]))  # type: ignore

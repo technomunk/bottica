@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Set up Poetry
-        run: pipx install poetry && poetry env use 310
+        run: pipx install poetry
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v3
@@ -23,5 +23,11 @@ jobs:
       - name: Install dependencies
         run: poetry install
 
-      - name: Perform linting analysis
-        run: poetry run sh lint.sh
+      - name: Perform Flake8 analysis
+        run: poetry run flake8 src/
+      - name: Perform mypy analysis
+        run: poetry run mypy --namespace-packages src/
+      - name: Perform Pylint analysis
+        run: poetry run pylint src/
+      - name: Make sure code adheres to black style
+        run: poetry run black --check src/

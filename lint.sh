@@ -1,4 +1,4 @@
-flake8 src/
-mypy --namespace-packages src/
-pylint src/
-black --check src/
+poetry run flake8 src/
+poetry run mypy --namespace-packages src/
+poetry run pylint src/
+poetry run black --check src/
