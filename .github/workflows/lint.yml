@@ -25,6 +25,14 @@ jobs:
           poetry env use python3
           poetry install
 
+      - name: Check flake8 version
+        run: |
+          poetry run python3 --version
+          poetry run flake8 --version
+          poetry run python3 -m flake8 --version
+          python -m poetry run flake8 --version
+          python3 -m poetry run flake8 --version
+
       - name: Run linting analysis
         run: |
           poetry run flake8 src/
