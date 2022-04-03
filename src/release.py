@@ -78,6 +78,7 @@ def release(bump: str, dry_run: bool) -> None:
 
         subprocess.run(
             ["gh", "release", "create", f"v{version}", "-t", str(version), "-F", "-"],
+            text=True,
             input=changes,
             check=False,
         )
