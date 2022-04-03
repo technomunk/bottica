@@ -11,8 +11,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install Poetry
-        run: pipx install poetry
+      - name: Set up Poetry
+        run: pipx install poetry && poetry env use 310
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v3
