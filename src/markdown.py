@@ -47,7 +47,7 @@ class Markdown:
         return iter(self.subsections)
 
     def __bool__(self) -> bool:
-        return bool(self.content) and bool(self.subsections)
+        return bool(self.content) or bool(self.subsections)
 
     def compose_content(
         self,

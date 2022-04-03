@@ -64,7 +64,7 @@ def release(bump: str, dry_run: bool) -> None:
         click.echo("Changelog:")
         click.echo(changes)
     else:
-        click.confirm("Continue without changelog update?", default=False, abort=False)
+        click.confirm("Continue without changelog update?", default=False, abort=True)
 
     click.confirm("Proceed with release?", default=True, abort=True)
 
@@ -73,7 +73,7 @@ def release(bump: str, dry_run: bool) -> None:
     if not dry_run:
         subprocess.run(["git", "add", "pyproject.toml", "changelog.md"], check=True)
         subprocess.run(["git", "commit", "-m", f"Bump to version {version}", "-n"], check=True)
-        subprocess.run(["git", "tag", "-a", f"v{version}", str(version)], check=True)
+        subprocess.run(["git", "tag", "-a", f"v{version}", "-m", str(version)], check=True)
         subprocess.run(["git", "push", "--follow-tags"], check=True)
 
         subprocess.run(
