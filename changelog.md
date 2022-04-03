@@ -1,9 +1,16 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
-
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## 0.22.2
+
+### Fixed
+
+* Song caching. I should take even less time playing shorter songs that I played before ^^
 
 ## 0.22.1
 
@@ -36,3 +43,4 @@ For cached songs I will still loud-normalize them, so `radio`-play is more pleas
 ### Added
 
 * This changelog! I will now inform you of all of my improvements ^^.
+
