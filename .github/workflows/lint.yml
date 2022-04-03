@@ -21,16 +21,17 @@ jobs:
           cache: "poetry"
 
       - name: Set python version
-        run: poetry env use python
+        run: |
+          poetry env use python
+          poetry run flake8 --version
+          poetry run python -V
 
       - name: Install dependencies
         run: poetry install
 
-      - name: Perform Flake8 analysis
-        run: poetry run flake8 src/
-      - name: Perform mypy analysis
-        run: poetry run mypy --namespace-packages src/
-      - name: Perform Pylint analysis
-        run: poetry run pylint src/
-      - name: Make sure code adheres to black style
-        run: poetry run black --check src/
+      - name: Run linting analysis
+        run: |
+          poetry run flake8 src/
+          poetry run mypy --namespace-packages src/
+          poetry run pylint src/
+          poetry run black --check src/
