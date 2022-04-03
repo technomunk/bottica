@@ -22,7 +22,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          poetry use python
+          poetry env use system
           poetry install
 
       - name: Check flake8 version
