@@ -9,24 +9,16 @@ jobs:
       matrix:
         python-version: ["3.10"]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+
+      - name: Install Poetry
+        run: pipx install poetry
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
-          cache-dependency-path: "**/requirements*.txt"
+          cache: "poetry"
 
-      - run: python -m pip install --upgrade pip
-      - run: pip install -r requirements-dev.txt
-      - run: pip install -r requirements.txt
-
-      - name: Analyse code with mypy
-        run: mypy --namespace-packages src/
-      - name: Analyse code with pylint
-        run: pylint src/
-      - name: Analyse code with flake8
-        run: flake8 src/
-      - name: Analyse code with black
-        run: black --check src/
+      - name: Perform linting analysis
+        run: poetry run sh lint.sh

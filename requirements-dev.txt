@@ -1,6 +1,0 @@
-black
-flake8
-pylint
-mypy
-discord.py-stubs>=1.7.3
-types-toml
