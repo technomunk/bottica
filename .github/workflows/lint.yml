@@ -22,7 +22,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          poetry env use system
+          poetry env use 3.10
           poetry install
 
       - name: Check flake8 version
