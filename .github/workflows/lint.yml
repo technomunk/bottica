@@ -11,9 +11,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install Poetry
-        run: pipx install poetry
-
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v3
         with:
@@ -22,7 +19,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          poetry env use python3
+          pipx install poetry
           poetry install
 
       - name: Check flake8 version
