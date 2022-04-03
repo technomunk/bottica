@@ -15,19 +15,16 @@ Start by using `b.help` which will print all available commands.
 ## Installing
 
 - Get [python 3.10](https://www.python.org/downloads/).
-- Create a virtual environment: `python3 -m venv <venv>`
-- Activate virtual environment:
-	+ Windows: `source <venv>/Scripts/activate`
-	+ Linux/MacOS: `source <venv>/bin/activate`
-- Install requirements: `pip install -r requirements.txt`
-- Get bot token from discord `https://discord.com/developers/applications/<app_id>/bot`
+- Get [poetry](https://python-poetry.org/docs/#installation).
+- Make sure [poetry uses python 3.10](https://python-poetry.org/docs/managing-environments/#switching-between-environments).
+- Run `poetry install`
+- Get bot token from discord `https://discord.com/developers/applications/<app_id>/bot` and save it to `config.toml`
 
 ## Running
 
-- Activate virtual environment:
-	+ Windows: `source <venv>/Scripts/activate`
-	+ Linux/MacOS: `source <venv>/bin/activate`
-- Run the bot: `python3 src/bot.py`
+```sh
+poetry run python3 src/manage.py run
+```
 
 ## Contributing
 

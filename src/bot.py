@@ -5,12 +5,9 @@ Register and run the main logic.
 
 import logging
 import random
-from argparse import ArgumentParser
 from typing import Callable, Iterable, List
 
 import discord
-import sentry_sdk
-import toml
 from discord.ext import commands as cmd
 from discord.ext.commands import Bot as DiscordBot
 from discord.mentions import AllowedMentions
@@ -101,72 +98,12 @@ async def jealousy(message: discord.Message):
     atask(message.reply(response))
 
 
-def run_bot():
-    # set up arguments
-    parser = ArgumentParser(
-        prog="bottica",
-        description='Run a discord bot named "Bottica".',
-    )
-    parser.add_argument(
-        "--discord-token",
-        type=str,
-        help="Discord API token to use, will override one provided in config.",
-    )
-    parser.add_argument(
-        "--sentry-token",
-        type=str,
-        help="Sentry SDK API token to use. Will override one provided in config. (optional)",
-    )
-    parser.add_argument(
-        "--log",
-        choices=(
-            "DEBUG",
-            "INFO",
-            "WARNING",
-            "ERROR",
-            "CRITICAL",
-        ),
-    )
-
-    args = parser.parse_args()
-
-    # parse configs
-    config = {}
-    try:
-        config = toml.load("config.toml")
-    except toml.TomlDecodeError as e:
-        _logger.error('Failed to parse "config.toml".')
-        _logger.exception(e, stack_info=False)
-
-    if "discord_token" not in config and not args.discor_token:
-        print("Please provide a Discord API token to use!")
-        print('Add it to "config.toml" or provide with --discord-token.')
-        return
-
-    sentry_token = args.sentry_token or config.get("sentry_token", "")
-    if sentry_token:
-        print("Initializing sentry")
-        # Probably sentry SDK issue
-        # pylint: disable=abstract-class-instantiated
-        sentry_sdk.init(sentry_token)
-
-    # set up logging
-    log_level = args.log or config.get("log") or logging.INFO
-    print("set logging level to", log_level)
-    logging.basicConfig(
-        format="%(asctime)s:%(levelname)s:%(name)s:%(funcName)s: %(message)s",
-        level=log_level,
-    )
-    logging.getLogger("discord").setLevel(logging.WARNING)
-
+def run_bot(discord_token: str = "", debug: bool = False) -> None:
+    """Run Bottica until cancelled."""
     register_commands(bot)
     bot.add_cog(Music(bot))
 
-    bot.debug = bool(config.get("debug", False))
+    bot.debug = debug
 
     bot.on_command_error = handle_command_error
-    bot.run(args.discord_token or config["discord_token"])
-
-
-if __name__ == "__main__":
-    run_bot()
+    bot.run(discord_token)

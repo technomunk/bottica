@@ -4,73 +4,15 @@ A utility for parsing and interpreting the changelog.
 Expects https://keepachangelog.com markdown file format.
 """
 
-from io import StringIO
-from typing import Dict, List
+from typing import Dict
 
 import discord
 from semver import VersionInfo  # type: ignore
 
+from markdown import Markdown
+
 CHANGELOG_FILENAME = "changelog.md"
 _INVALID_VERSION = VersionInfo(0)
-
-
-def parse_changes_since(version: VersionInfo = VersionInfo(0)) -> Dict[VersionInfo, Dict[str, str]]:
-    """Parse changes since provided version."""
-
-    changelog: Dict[VersionInfo, Dict[str, str]] = {}
-    changelog_started = False
-
-    with open(CHANGELOG_FILENAME, "r", encoding="utf8") as changelog_file:
-        section_version = _INVALID_VERSION
-        changes: Dict[str, str] = {}
-        section_title = ""
-        section_content = StringIO()
-
-        for line in changelog_file:
-            if line.startswith("## "):
-                section_text = section_content.getvalue()
-                if changelog_started and (section_title or section_text):
-                    changes[section_title] = section_text
-                    section_content = StringIO()
-
-                if changes:
-                    changelog[section_version] = changes
-                    changes = {}
-
-                try:
-                    section_version = VersionInfo.parse(line.removeprefix("## ").strip())
-                    changelog_started = True
-
-                    if section_version <= version:
-                        return changelog
-                except ValueError:
-                    pass  # not an interesting section
-
-                continue
-
-            if not changelog_started:
-                continue
-
-            if line.startswith("###"):
-                section_text = section_content.getvalue()
-                if section_title or section_text:
-                    changes[section_title] = section_text
-                section_title = line.removeprefix("###").strip()
-                section_content = StringIO()
-                continue
-
-            if line := line.strip():
-                section_content.write(line)
-                section_content.write("\n")
-
-        section_text = section_content.getvalue()
-        if changelog_started and (section_title or section_text):
-            changes[section_title] = section_text
-
-        if changes:
-            changelog[section_version] = changes
-
-    return changelog
 
 
 def parse_latest_version() -> VersionInfo:
@@ -84,6 +26,26 @@ def parse_latest_version() -> VersionInfo:
                     continue
 
     return _INVALID_VERSION
+
+
+def parse_changes_since(previous_version: VersionInfo) -> Dict[VersionInfo, Dict[str, str]]:
+    with open(CHANGELOG_FILENAME, "r", encoding="utf8") as changelog_file:
+        changelog = Markdown.parse(changelog_file)
+
+    changes: Dict[VersionInfo, Dict[str, str]] = {}
+
+    # looks like a false-positive
+    # pylint:disable=not-an-iterable
+    for section in changelog[0]:
+        try:
+            version = VersionInfo.parse(section.title)
+        except ValueError:
+            continue
+
+        if version > previous_version:
+            changes[version] = _compose_subsection_dict(section)
+
+    return changes
 
 
 def compose_changelog_message(changelog: Dict[VersionInfo, Dict[str, str]]) -> discord.Embed:
@@ -108,17 +70,12 @@ def compose_changelog_message(changelog: Dict[VersionInfo, Dict[str, str]]) -> d
     return embed
 
 
-def _format_change_section(lines: List[str]) -> str:
-    add_padding = False
-    text = StringIO()
+def _compose_subsection_dict(section: Markdown) -> Dict[str, str]:
+    result: Dict[str, str] = {}
+    if section.content:
+        result = {"": section.content}
 
-    for line in lines:
-        if line.startswith("#") and add_padding:
-            text.write("\n")  # add a little bit of padding
+    for subsection in section:
+        result[subsection.title] = subsection.compose_content(include_heading=False)
 
-        if line:
-            text.write(line)
-            text.write("\n")
-            add_padding = True
-
-    return text.getvalue()
+    return result

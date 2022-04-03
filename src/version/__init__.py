@@ -21,6 +21,9 @@ async def notify_of_new_changes(guilds: Iterable[discord.Guild]) -> None:
         with open(_VERSION_FILENAME, "r", encoding="utf8") as version_file:
             version = VersionInfo.parse(version_file.read())
 
+    if version == BOT_VERSION:
+        return
+
     changelog = parse_changes_since(version)
     if not changelog:
         return

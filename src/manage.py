@@ -4,18 +4,24 @@ Use caution when using while Bottica is running.
 """
 
 import csv
+import logging
 from dataclasses import asdict, astuple
 from os import listdir, remove, replace, stat
 from os.path import isfile, join
 from typing import Callable, List, Set, Tuple
 
 import click
+import sentry_sdk
+import toml
 
+from bot import run_bot
 from file import AUDIO_FOLDER, GUILD_SET_FOLDER, SONG_REGISTRY_FILENAME
 from infrastructure.util import format_size
 from music.song import FILE_ENCODING, SongCSVDialect, SongKey, open_song_registry
 from version import BOT_VERSION
 from version.migrate import MIGRATIONS
+
+_logger = logging.getLogger(__name__)
 
 MULTIPLIERS = {
     "K": 1 << 10,
@@ -25,7 +31,7 @@ MULTIPLIERS = {
 
 
 @click.group()
-def cli():
+def cli() -> None:
     """Bottica management CLI."""
     return 0
 
@@ -39,7 +45,7 @@ def cli():
     default="",
     shell_complete=lambda *_: MULTIPLIERS.keys(),
 )
-def prune(count: int, unit: str):
+def prune(count: int, unit: str) -> None:
     """Unlink and remove files larger than provided size."""
     if count < 1:
         click.echo("Size must be positive!")
@@ -76,7 +82,7 @@ def prune(count: int, unit: str):
 
 @cli.command()
 @click.option("-v", "--verbose", is_flag=True, help="Print cleaned entries.")
-def clean(verbose: bool):
+def clean(verbose: bool) -> None:
     """Remove any data not linked to Bottica."""
     tmp_filepath = SONG_REGISTRY_FILENAME + ".temp"
     linked_filenames = set()
@@ -121,7 +127,7 @@ def clean(verbose: bool):
     shell_complete=lambda *_: MIGRATIONS.keys(),
 )
 @click.option("--keep-files", is_flag=True, help="Keep old files for extra safety.")
-def migrate(version: str, keep_files: bool):
+def migrate(version: str, keep_files: bool) -> None:
     migration_procedure = MIGRATIONS.get(version)
     if not migration_procedure:
         print("Unknown migration version. Must be one of ", MIGRATIONS.keys())
@@ -133,6 +139,56 @@ def migrate(version: str, keep_files: bool):
             remove(filename)
 
     print("Migration", version, "=>", BOT_VERSION, "complete")
+
+
+@cli.command()
+@click.option(
+    "--discord-token",
+    type=str,
+    help="Discord API token to use, will override one provided in config.",
+)
+@click.option(
+    "--sentry-token",
+    type=str,
+    help="Sentry SDK API token to use. Will override one provided in config. (optional)",
+)
+@click.option(
+    "--log",
+    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], case_sensitive=False),
+    help="Set the logging level.",
+)
+@click.option("--debug", is_flag=True, help="Run in debug mode.")
+def run(discord_token: str, sentry_token: str, log: str, debug: bool) -> None:
+    """Run the bot until cancelled."""
+    config = {}
+    try:
+        config = toml.load("config.toml")
+    except toml.TomlDecodeError as e:
+        _logger.error('Failed to parse "config.toml".')
+        _logger.exception(e, stack_info=False)
+
+    if not any([discord_token, config.get("discord_token")]):
+        click.echo("Please provide a Discord API token to use!")
+        click.echo('Add it to "config.toml" or provide with --discord-token.')
+        return
+
+    sentry_token = sentry_token or config.get("sentry_token", "")
+    if sentry_token:
+        click.echo("Initializing sentry")
+        # Probably sentry SDK issue
+        # pylint: disable=abstract-class-instantiated
+        sentry_sdk.init(sentry_token)
+
+    # set up logging
+    log_level = log or config.get("log") or logging.INFO
+    print("set logging level to", log_level)
+    logging.basicConfig(
+        format="%(asctime)s:%(levelname)s:%(name)s:%(funcName)s: %(message)s",
+        level=log_level,
+    )
+    logging.getLogger("discord").setLevel(logging.WARNING)
+
+    run_bot(discord_token or config["discord_token"], debug or config.get("debug", False))
 
 
 def _gather_songs_larger_than(min_size: int) -> Tuple[Set[SongKey], List[str], int]:
