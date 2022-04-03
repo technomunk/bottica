@@ -11,6 +11,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Install poetry
+        run: pipx install poetry
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v3
         with:
@@ -18,17 +21,15 @@ jobs:
           cache: "poetry"
 
       - name: Install dependencies
-        run: |
-          pipx install poetry
-          poetry install
+        run: poetry install
 
       - name: Check flake8 version
         run: |
+          poetry run python --version
           poetry run python3 --version
           poetry run flake8 --version
+          poetry run python -m flake8 --version
           poetry run python3 -m flake8 --version
-          python -m poetry run flake8 --version
-          python3 -m poetry run flake8 --version
 
       - name: Run linting analysis
         run: |
