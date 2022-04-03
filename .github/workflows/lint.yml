@@ -25,7 +25,7 @@ jobs:
 
       - name: Run linting analysis
         run: |
-          poetry run flake8 src/
-          poetry run mypy --namespace-packages src/
-          poetry run pylint src/
-          poetry run black --check src/
+          poetry run python3 -m flake8 src/
+          poetry run python3 -m mypy --namespace-packages src/
+          poetry run python3 -m pylint src/
+          poetry run python3 -m black --check src/
