@@ -121,7 +121,7 @@ class Music(cmd.Cog):
             f"Music mode is `{mctx.select_mode.value}`",
         )
 
-    @cmd.command(aliases=("p",))
+    @cmd.command(aliases=["p"])
     @cmd.check(check.bot_has_voice_permission_in_author_channel)
     async def play(self, ctx: cmd.Context, query: str):
         """
@@ -149,7 +149,7 @@ class Music(cmd.Cog):
             if not mctx.is_playing():
                 await mctx.play_next()
 
-    @cmd.command(aliases=("pa",))
+    @cmd.command(aliases=["pa"])
     @cmd.check(check.bot_has_voice_permission_in_author_channel)
     async def playall(self, ctx: cmd.Context):
         """
@@ -191,7 +191,7 @@ class Music(cmd.Cog):
         if not voice_client.is_paused():
             voice_client.pause()
 
-    @cmd.command(aliases=("unpause",))
+    @cmd.command(aliases=["unpause"])
     @cmd.check(check.bot_is_voice_connected)
     async def resume(self, ctx: cmd.Context) -> None:
         """Resume paused playback."""
@@ -208,7 +208,7 @@ class Music(cmd.Cog):
         mctx = self.get_music_context(ctx)
         mctx.disconnect()
 
-    @cmd.command(aliases=("pq",))
+    @cmd.command(aliases=["pq"])
     async def clear(self, ctx: cmd.Context):
         """Drop any of the currently queued songs."""
         mctx = self.get_music_context(ctx)
@@ -229,7 +229,7 @@ class Music(cmd.Cog):
         else:
             atask(ctx.reply("Not playing anything at the moment."))
 
-    @cmd.command(aliases=("q",))
+    @cmd.command(aliases=["q"])
     async def queue(self, ctx: cmd.Context):
         """Display information about the current song queue."""
         mctx = self.get_music_context(ctx)
@@ -266,7 +266,7 @@ class Music(cmd.Cog):
         else:
             atask(ctx.reply(f"I'm in {mctx.select_mode.value} mode. 😊"))
 
-    @cmd.command(aliases=("n",))
+    @cmd.command(aliases=["n", "skip"])
     async def next(self, ctx: cmd.Context):
         """Skip the current song."""
         mctx = self.get_music_context(ctx)
@@ -274,7 +274,7 @@ class Music(cmd.Cog):
             atask(ctx.reply("I'm not playing anything." + random.choice(response.FAILS)))
         await mctx.play_next()
 
-    @cmd.command(aliases=("j",))
+    @cmd.command(aliases=["j"])
     async def join(self, ctx: cmd.Context, channel: Optional[discord.VoiceChannel] = None):
         """Make Bottica join a given voice channel if provided or issuer's voice channel."""
         if channel is None:

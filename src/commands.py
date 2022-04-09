@@ -60,7 +60,7 @@ async def choose(ctx: cmd.Context, *mentions: Union[discord.Role, discord.Member
     atask(ctx.reply(reply_content))
 
 
-@cmd.command(aliases=("ass",))
+@cmd.command(aliases=["ass"])
 async def sass(ctx: cmd.Context):
     """Give me SASS!"""
     atask(ctx.reply(make_sass(ctx)))
