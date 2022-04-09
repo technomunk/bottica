@@ -106,7 +106,7 @@ class Music(cmd.Cog):
             ):
                 await mctx.join_or_throw(after.channel)
                 _logger.debug("resuming playback on member connect")
-                mctx.play_next()
+                await mctx.play_next()
 
     def status(self, ctx: cmd.Context) -> Iterable[str]:
         if ctx.guild is None:
