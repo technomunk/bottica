@@ -29,7 +29,7 @@ _loader = YoutubeDL(
 )
 
 
-async def streamable_url(song: SongInfo, cache: bool) -> str:
+async def streamable_url(song: SongInfo, allow_caching: bool) -> str:
     info = await event_loop.run_in_executor(
         None,
         partial(
@@ -39,7 +39,7 @@ async def streamable_url(song: SongInfo, cache: bool) -> str:
         ),
     )
 
-    if cache:
+    if allow_caching:
         # Run the download completely asynchronously without blocking
         task = event_loop.run_in_executor(None, partial(_download_and_normalize, info))
         atask(task)
@@ -77,7 +77,7 @@ def _extract_song_info(info: ReqInfo) -> Optional[SongInfo]:
     return SongInfo(
         domain,
         id=info["id"],
-        duration=info["duration"],
+        duration=int(info["duration"]),
         title=info["title"],
     )
 

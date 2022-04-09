@@ -293,7 +293,10 @@ class MusicContext(SelectSong):
         if path.exists(filepath):
             return discord.FFmpegOpusAudio(filepath, **FFMPEG_OPTIONS)
 
-        cache = song.duration <= self._guild_config.max_cached_duration
-        url = await streamable_url(song, cache)
+        should_cache = (
+            self._guild_config.max_cached_duration == -1
+            or song.duration <= self._guild_config.max_cached_duration
+        )
+        url = await streamable_url(song, should_cache)
 
         return discord.FFmpegPCMAudio(url, **FFMPEG_OPTIONS)

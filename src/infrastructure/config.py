@@ -22,8 +22,8 @@ class GuildConfig:
     __instances: ClassVar[Dict[int, GuildConfig]] = {}
     __fields: ClassVar = ["min_repeat_interval", "max_cached_duration"]
 
-    min_repeat_interval = MinMax(32, 1, 1024)
-    max_cached_duration = Min(600, -1)
+    min_repeat_interval: MinMax[int] = MinMax(32, 1, 1024)
+    max_cached_duration: Min[int] = Min(600, -1)
 
     def __new__(cls: Type[GuildConfig], guild_id: int) -> GuildConfig:
         if config := cls.__instances.get(guild_id):
