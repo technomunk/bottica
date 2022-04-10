@@ -6,7 +6,7 @@ from typing import Final, Iterable
 import discord
 from semver import VersionInfo  # type: ignore
 
-from file import DATA_FOLDER
+from bottica.file import DATA_FOLDER
 
 from .changelog import compose_changelog_message, parse_changes_since, parse_latest_version
 

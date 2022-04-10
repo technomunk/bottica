@@ -9,11 +9,11 @@ from typing import Dict, Iterable, Optional, cast
 import discord
 import discord.ext.commands as cmd
 
-import response
-from file import GUILD_CONTEXT_FOLDER, SONG_REGISTRY_FILENAME
-from infrastructure.error import atask
-from infrastructure.util import format_duration, has_listening_members, is_listening
-from music import check
+from bottica import response
+from bottica.file import GUILD_CONTEXT_FOLDER, SONG_REGISTRY_FILENAME
+from bottica.infrastructure.error import atask
+from bottica.infrastructure.util import format_duration, has_listening_members, is_listening
+from bottica.music import check
 
 from .context import MusicContext, SongSelectMode
 from .download import process_request
@@ -123,7 +123,7 @@ class Music(cmd.Cog):
 
     @cmd.command(aliases=["p"])
     @cmd.check(check.bot_has_voice_permission_in_author_channel)
-    async def play(self, ctx: cmd.Context, query: str):
+    async def play(self, ctx: cmd.Context, url: str):
         """
         Play songs found at provided query.
         I will join issuer's voice channel if possible.
@@ -131,7 +131,7 @@ class Music(cmd.Cog):
         mctx = self.get_music_context(ctx)
         await mctx.join_or_throw(ctx.author.voice.channel)  # type: ignore
 
-        songs = await process_request(query)
+        songs = await process_request(url)
         songs = list(songs)
 
         if mctx.is_shuffling and not mctx.is_playing() and len(songs) > 1:

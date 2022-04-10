@@ -24,6 +24,9 @@ mypy = "*"
 pylint = "*"
 types-toml = "^0.10.4"
 
+[tool.poetry.scripts]
+bottica = "bottica.__main__:cli"
+
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"

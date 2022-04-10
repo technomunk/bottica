@@ -9,7 +9,7 @@ from typing import Dict
 import discord
 from semver import VersionInfo  # type: ignore
 
-from markdown import Markdown
+from bottica.markdown import Markdown
 
 CHANGELOG_FILENAME = "changelog.md"
 _INVALID_VERSION = VersionInfo(0)

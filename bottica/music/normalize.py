@@ -6,7 +6,7 @@ from os.path import splitext
 import ffmpeg_normalize  # type: ignore
 from ffmpeg_normalize import FFmpegNormalize, MediaFile
 
-from file import AUDIO_FOLDER
+from bottica.file import AUDIO_FOLDER
 
 from .song import EXTENSION
 

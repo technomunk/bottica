@@ -1,4 +1,4 @@
-poetry run flake8 src/
-poetry run mypy --namespace-packages src/
-poetry run pylint src/
-poetry run black --check src/
+poetry run flake8 bottica/
+poetry run mypy --namespace-packages bottica/
+poetry run pylint bottica/
+poetry run black --check bottica/

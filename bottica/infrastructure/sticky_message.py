@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import discord
 
-from infrastructure.error import atask
+from bottica.infrastructure.error import atask
 
 
 class StickyMessage:

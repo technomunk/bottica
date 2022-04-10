@@ -5,7 +5,7 @@ Run migration from specified version.
 import os
 from typing import List
 
-from file import GUILD_SET_FOLDER, SONG_REGISTRY_FILENAME
+from bottica.file import GUILD_SET_FOLDER, SONG_REGISTRY_FILENAME
 
 from .old_song import OLD_SONG_REGISTRY_FILENAME, convert_old_song_registry, convert_old_song_set
 

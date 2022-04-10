@@ -9,7 +9,7 @@ import discord.ext.commands as cmd
 from discord import Embed
 from sentry_sdk import capture_exception
 
-from response import REACTIONS
+from bottica.response import REACTIONS
 
 from .friendly_error import make_user_friendly
 

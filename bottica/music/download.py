@@ -6,9 +6,10 @@ from typing import Iterable, NewType, Optional
 
 from yt_dlp import YoutubeDL  # type: ignore
 
-from file import AUDIO_FOLDER, DATA_FOLDER
-from infrastructure.error import atask, event_loop
-from music.normalize import normalize_song
+from bottica.file import AUDIO_FOLDER, DATA_FOLDER
+from bottica.infrastructure.error import atask, event_loop
+from bottica.music.error import InvalidURLError
+from bottica.music.normalize import normalize_song
 
 from .song import SongInfo
 
@@ -58,6 +59,9 @@ async def process_request(query: str) -> Iterable[SongInfo]:
             process=False,
         ),
     )
+
+    if req_info is None:
+        raise InvalidURLError()
 
     req_type = req_info.get("_type", "video")
 

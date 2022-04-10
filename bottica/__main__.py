@@ -14,13 +14,13 @@ import click
 import sentry_sdk
 import toml
 
-from bot import run_bot
-from file import AUDIO_FOLDER, GUILD_SET_FOLDER, SONG_REGISTRY_FILENAME
-from infrastructure.util import format_size
-from music.song import FILE_ENCODING, SongCSVDialect, SongKey, open_song_registry
-from release import release
-from version import BOT_VERSION
-from version.migrate import MIGRATIONS
+from bottica.bot import run_bot
+from bottica.file import AUDIO_FOLDER, GUILD_SET_FOLDER, SONG_REGISTRY_FILENAME
+from bottica.infrastructure.util import format_size
+from bottica.music.song import FILE_ENCODING, SongCSVDialect, SongKey, open_song_registry
+from bottica.release import release
+from bottica.version import BOT_VERSION
+from bottica.version.migrate import MIGRATIONS
 
 _logger = logging.getLogger(__name__)
 
@@ -35,9 +35,6 @@ MULTIPLIERS = {
 def cli() -> int:
     """Bottica management CLI."""
     return 0
-
-
-cli.add_command(release)
 
 
 @cli.command()
@@ -157,8 +154,8 @@ def migrate(version: str, keep_files: bool) -> None:
     type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], case_sensitive=False),
     help="Set the logging level.",
 )
-@click.option("--debug", is_flag=True, help="Run in debug mode.")
-def run(discord_token: str, sentry_token: str, log: str, debug: bool) -> None:
+@click.option("--notify", is_flag=True, help="Notify users of any changes.")
+def run(discord_token: str, sentry_token: str, log: str, notify: bool) -> None:
     """Run the bot until cancelled."""
     config = {}
     try:
@@ -188,7 +185,7 @@ def run(discord_token: str, sentry_token: str, log: str, debug: bool) -> None:
     )
     logging.getLogger("discord").setLevel(logging.WARNING)
 
-    run_bot(discord_token or config["discord_token"], debug or config.get("debug", False))
+    run_bot(discord_token or config["discord_token"], notify)
 
 
 def _gather_songs_larger_than(min_size: int) -> Tuple[Set[SongKey], List[str], int]:
@@ -243,4 +240,5 @@ def _unlink_songs_in(filepath: str, predicate: Callable[[SongKey], bool], verbos
 
 
 if __name__ == "__main__":
+    cli.add_command(release)
     cli()

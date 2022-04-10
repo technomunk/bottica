@@ -1,7 +1,7 @@
 """Music-specific errors"""
 import discord
 
-from infrastructure.friendly_error import FriendlyError
+from bottica.infrastructure.friendly_error import FriendlyError
 
 
 class AuthorNotVoiceConnectedError(FriendlyError):
@@ -17,3 +17,10 @@ class AuthorNotInPlayingChannel(FriendlyError):
 class BotLacksVoicePermissions(FriendlyError):
     def __init__(self, channel: discord.VoiceChannel):
         super().__init__(f'I lack voice permissions for "{channel.name}"')
+
+
+class InvalidURLError(FriendlyError):
+    def __init__(self):
+        super().__init__(
+            "Heya, that does not look like a youtube url. I only know those :innocent:",
+        )

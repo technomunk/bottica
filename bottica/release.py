@@ -10,8 +10,8 @@ from typing import Tuple
 import click
 from semver import VersionInfo  # type: ignore
 
-from markdown import Markdown
-from version import BOT_VERSION
+from bottica.markdown import Markdown
+from bottica.version import BOT_VERSION
 
 VERSION_BUMPS = {
     "major": partial(BOT_VERSION.bump_major),

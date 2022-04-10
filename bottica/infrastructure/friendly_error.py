@@ -31,7 +31,7 @@ from discord.ext.commands.errors import (
     UserNotFound,
 )
 
-from infrastructure.util import convertee_names
+from bottica.infrastructure.util import convertee_names
 
 CustomMessage = Callable[[CommandError], str]
 

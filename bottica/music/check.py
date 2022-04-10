@@ -4,7 +4,7 @@ import logging
 import discord
 import discord.ext.commands as cmd
 
-from music.error import AuthorNotVoiceConnectedError, BotLacksVoicePermissions
+from bottica.music.error import AuthorNotVoiceConnectedError, BotLacksVoicePermissions
 
 _logger = logging.getLogger(__name__)
 

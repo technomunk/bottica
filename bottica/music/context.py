@@ -13,14 +13,14 @@ from typing import Optional, cast
 
 import discord
 
-from file import AUDIO_FOLDER, GUILD_CONTEXT_FOLDER, GUILD_SET_FOLDER
-from infrastructure import converters
-from infrastructure.config import GuildConfig
-from infrastructure.error import atask
-from infrastructure.persist import Field, Persist
-from infrastructure.sticky_message import StickyMessage
-from infrastructure.util import format_duration, has_listening_members
-from music.download import streamable_url
+from bottica.file import AUDIO_FOLDER, GUILD_CONTEXT_FOLDER, GUILD_SET_FOLDER
+from bottica.infrastructure import converters
+from bottica.infrastructure.config import GuildConfig
+from bottica.infrastructure.error import atask
+from bottica.infrastructure.persist import Field, Persist
+from bottica.infrastructure.sticky_message import StickyMessage
+from bottica.infrastructure.util import format_duration, has_listening_members
+from bottica.music.download import streamable_url
 
 from .error import AuthorNotInPlayingChannel
 from .song import SongInfo, SongQueue, SongRegistry, SongSet

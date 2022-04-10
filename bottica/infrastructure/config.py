@@ -9,7 +9,7 @@ import logging
 from os import path
 from typing import ClassVar, Dict, Type, TypeVar
 
-from file import GUILD_CONFIG_FOLDER
+from bottica.file import GUILD_CONFIG_FOLDER
 
 from .validators import Min, MinMax, ValidationError
 

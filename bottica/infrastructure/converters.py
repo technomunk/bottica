@@ -6,8 +6,8 @@ from typing import Any, Tuple, Type, TypeVar
 
 import discord
 
-from infrastructure.persist import Converter
-from infrastructure.sticky_message import StickyMessage as StickyMessageCls
+from bottica.infrastructure.persist import Converter
+from bottica.infrastructure.sticky_message import StickyMessage as StickyMessageCls
 
 VarT = TypeVar("VarT")
 ChannelT = TypeVar("ChannelT", discord.TextChannel, discord.VoiceChannel)

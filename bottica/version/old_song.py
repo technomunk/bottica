@@ -3,8 +3,8 @@ import csv
 from dataclasses import asdict, astuple
 from os import path
 
-from file import DATA_FOLDER
-from music.song import FILE_ENCODING, SongCSVDialect, SongInfo, SongKey
+from bottica.file import DATA_FOLDER
+from bottica.music.song import FILE_ENCODING, SongCSVDialect, SongInfo, SongKey
 
 OLD_SONG_REGISTRY_FILENAME = path.join(DATA_FOLDER, "songs.txt")
 

@@ -12,12 +12,12 @@ from discord.ext import commands as cmd
 from discord.ext.commands import Bot as DiscordBot
 from discord.mentions import AllowedMentions
 
-from commands import register_commands
-from infrastructure.error import atask, event_loop, handle_command_error
-from music.cog import Music
-from response import JEALOUS, REACTIONS
-from sass import make_sass, should_sass
-from version import notify_of_new_changes
+from bottica.commands import register_commands
+from bottica.infrastructure.error import atask, event_loop, handle_command_error
+from bottica.music.cog import Music
+from bottica.response import JEALOUS, REACTIONS
+from bottica.sass import make_sass, should_sass
+from bottica.version import notify_of_new_changes
 
 # Not my fault discord type-info sucks
 # pylint: disable=assigning-non-slot
@@ -33,7 +33,7 @@ class Bottica(DiscordBot):
         super().__init__(command_prefix, **options)
 
         self.status_reporters: List[Callable[[cmd.Context], Iterable[str]]] = []
-        self.debug = False
+        self.notify = False
 
     async def close(self) -> None:
         for cog in self.cogs.values():
@@ -57,7 +57,7 @@ async def on_ready():
     for guild in bot.guilds:
         _logger.debug("%s (id: %d)", guild.name, guild.id)
 
-    if not bot.debug:
+    if bot.notify:
         await notify_of_new_changes(bot.guilds)
 
     _logger.info("%s is ready", bot.user.name)
@@ -98,12 +98,12 @@ async def jealousy(message: discord.Message):
     atask(message.reply(response))
 
 
-def run_bot(discord_token: str = "", debug: bool = False) -> None:
+def run_bot(discord_token: str = "", notify: bool = False) -> None:
     """Run Bottica until cancelled."""
     register_commands(bot)
     bot.add_cog(Music(bot))
 
-    bot.debug = debug
+    bot.notify = notify
 
     bot.on_command_error = handle_command_error  # type: ignore
     bot.run(discord_token)

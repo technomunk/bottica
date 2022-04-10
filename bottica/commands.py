@@ -6,9 +6,9 @@ from typing import Set, Union
 import discord
 from discord.ext import commands as cmd
 
-from infrastructure.error import atask
-from sass import make_sass
-from version import BOT_VERSION
+from bottica.infrastructure.error import atask
+from bottica.sass import make_sass
+from bottica.version import BOT_VERSION
 
 
 @cmd.command()
