@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 0.22.4
+
 ### Fixed
 
 * I will now recognize non-playable queries and inform you of them :smile:
