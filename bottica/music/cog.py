@@ -79,9 +79,6 @@ class Music(cmd.Cog):
         before: discord.VoiceState,
         after: discord.VoiceState,
     ) -> None:
-        if not isinstance(before.channel, discord.VoiceChannel):
-            return
-
         if not isinstance(after.channel, discord.VoiceChannel):
             return
 
