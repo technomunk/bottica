@@ -82,7 +82,12 @@ class Music(cmd.Cog):
         if not isinstance(after.channel, discord.VoiceChannel):
             return
 
-        guild_id = after.channel.guild.id if after.channel is not None else before.channel.guild.id
+        if after.channel:
+            guild_id = after.channel.guild.id
+        elif isinstance(before, discord.VoiceChannel) and before.channel:
+            guild_id = before.channel.guild.id  # type: ignore
+        else:
+            return
 
         mctx = self.contexts.get(guild_id)
         if mctx is None or mctx.voice_channel is None:

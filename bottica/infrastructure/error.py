@@ -26,7 +26,7 @@ async def safe_task(coroutine: Awaitable, ctx: Optional[cmd.Context] = None):
         _logger.warning("task was cancelled")
     except cmd.CommandError as error:
         if ctx is not None:
-            handle_command_error(ctx, error)
+            await handle_command_error(ctx, error)
         _logger.exception(error, stacklevel=2)
     except Exception as error:
         capture_exception(error)
