@@ -7,13 +7,11 @@ from __future__ import annotations
 import json
 import logging
 from os import path
-from typing import ClassVar, Dict, Type, TypeVar
+from typing import ClassVar, Dict, Type
 
 from bottica.file import GUILD_CONFIG_FOLDER
 
 from .validators import Min, MinMax, ValidationError
-
-VarT = TypeVar("VarT")
 
 _logger = logging.getLogger(__name__)
 
