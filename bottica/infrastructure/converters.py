@@ -1,8 +1,10 @@
 """Data-converters for persistence."""
+from __future__ import annotations
+
 import enum
 import logging
 import typing
-from typing import Any, Tuple, Type, TypeVar
+from typing import Any, Callable, Generic, Tuple, Type, TypeVar, overload
 
 import discord
 
@@ -76,3 +78,33 @@ class StickyMessage(Converter[StickyMessageCls]):
         channel: discord.TextChannel = client.get_channel(value[0])  # type: ignore
         message: discord.Message = await channel.fetch_message(value[1])
         return StickyMessageCls(message)
+
+
+class DeferredConverter(Generic[VarT]):
+    def __init__(self, converter: Callable[[Any], VarT], default: Callable[[], VarT]) -> None:
+        self.name: str
+        self.converter = converter
+        self.default = default
+
+    def __set_name__(self, owner: Type, name: str) -> None:
+        self.name = "__" + name
+
+    @overload
+    def __get__(self, instance: None, owner: Any) -> DeferredConverter[VarT]:
+        ...
+
+    @overload
+    def __get__(self, instance: Any, owner: Any) -> VarT:
+        ...
+
+    def __get__(self, instance: Any, owner: Any) -> VarT | DeferredConverter[VarT]:
+        if instance is None:
+            return self
+
+        if not hasattr(instance, self.name):
+            setattr(instance, self.name, self.default())
+
+        return getattr(instance, self.name)
+
+    def __set__(self, instance: Any, value: Any) -> None:
+        setattr(instance, self.name, self.converter(value))
