@@ -11,8 +11,11 @@ import discord.ext.commands as cmd
 
 from bottica import response
 from bottica.file import GUILD_CONTEXT_FOLDER, SONG_REGISTRY_FILENAME
+from bottica.infrastructure.check import guild_only
+from bottica.infrastructure.config import GuildConfig
 from bottica.infrastructure.error import atask
-from bottica.infrastructure.util import has_listening_members, is_listening
+from bottica.infrastructure.friendly_error import FriendlyError
+from bottica.infrastructure.util import format_duration, has_listening_members
 from bottica.music import check
 from bottica.util import fmt
 from bottica.util.persist import persist
@@ -20,7 +23,7 @@ from bottica.util.persist import persist
 from .context import MusicContext
 from .download import process_request
 from .error import AuthorNotInPlayingChannel, BotLacksVoicePermissions
-from .song import SongRegistry
+from .song import SongInfo, SongRegistry
 
 ALLOWED_INFO_TYPES = ("video", "url")
 _logger = logging.getLogger(__name__)
@@ -85,39 +88,37 @@ class Music(cmd.Cog):
     async def on_voice_state_update(
         self,
         member: discord.Member,
-        before: discord.VoiceState,
+        _before: discord.VoiceState,
         after: discord.VoiceState,
     ) -> None:
-        if not isinstance(after.channel, discord.VoiceChannel):
-            return
-
-        if after.channel:
-            guild_id = after.channel.guild.id
-        elif isinstance(before, discord.VoiceChannel) and before.channel:
-            guild_id = before.channel.guild.id  # type: ignore
-        else:
-            return
-
-        mctx = self.contexts.get(guild_id)
-        if mctx is None or mctx.voice_channel is None:
-            return
-
         if member == self.bot.user:
             return
 
-        # check that a real user connected to a channel
-        if not is_listening(member) or after.channel is None:
+        if not isinstance(after.channel, discord.VoiceChannel):
             return
 
-        if after.channel == mctx.voice_channel:
-            if (
-                not mctx.is_playing()
-                and not mctx.is_paused()
-                and has_listening_members(after.channel)
-            ):
+        if after.channel is None or not has_listening_members(after.channel):
+            return
+
+        guild_id = after.channel.guild.id
+        mctx = self.contexts.get(guild_id)
+        if mctx is None or mctx.is_playing() or mctx.is_paused():
+            return
+
+        try_resume = mctx.voice_channel == after.channel
+
+        try:
+            song = self.get_announcement(guild_id, member.id)
+            if song is not None:
                 await mctx.join_or_throw(after.channel)
-                _logger.debug("resuming playback on member connect")
-                await mctx.play_next()
+                await mctx.play_announcement(song)
+                return
+        except FriendlyError:
+            pass
+
+        if try_resume:
+            await mctx.join_or_throw(after.channel)
+            await mctx.play_next()
 
     def status(self, ctx: cmd.Context) -> Iterable[str]:
         if ctx.guild is None:
@@ -138,6 +139,7 @@ class Music(cmd.Cog):
 
     @cmd.command(aliases=["p"])
     @cmd.check(check.bot_has_voice_permission_in_author_channel)
+    @guild_only
     async def play(self, ctx: cmd.Context, url: str):
         """
         Play songs found at provided query.
@@ -147,7 +149,6 @@ class Music(cmd.Cog):
         await mctx.join_or_throw(ctx.author.voice.channel)  # type: ignore
 
         songs = await process_request(url)
-        songs = list(songs)
 
         if mctx.shuffle_enabled and not mctx.is_playing() and len(songs) > 1:
             _logger.debug("randomizing first song")
@@ -166,6 +167,7 @@ class Music(cmd.Cog):
 
     @cmd.command(aliases=["pa"])
     @cmd.check(check.bot_has_voice_permission_in_author_channel)
+    @guild_only
     async def playall(self, ctx: cmd.Context):
         """
         Play all songs that were ever queued on this server.
@@ -179,22 +181,9 @@ class Music(cmd.Cog):
 
     @cmd.command()
     @cmd.check(check.bot_has_voice_permission_in_author_channel)
+    @guild_only
     async def shuffle(self, ctx: cmd.Context, enabled: Optional[bool] = None):
         """Enable, disable or check shuffle mode."""
-        mctx = self.get_music_context(ctx)
-        if enabled is None:
-            atask(ctx.reply(f"Shuffle is {fmt.onoff(mctx.shuffle_enabled)}."))
-            return
-        mctx.shuffle_enabled = enabled
-
-    @cmd.command()
-    @cmd.check(check.bot_has_voice_permission_in_author_channel)
-    async def radio(self, ctx: cmd.Context, enabled: Optional[bool] = None):
-        """
-        Enable or disable radio mode.
-
-        If radio mode is enabled - I will play songs you asked for earlier instead of going quiet.
-        """
         mctx = self.get_music_context(ctx)
         if enabled is None:
             atask(ctx.reply(f"Radio mode is {fmt.onoff(mctx.radio_enabled)}"))
@@ -205,6 +194,7 @@ class Music(cmd.Cog):
             await mctx.play_next()
 
     @cmd.command()
+    @guild_only
     async def reset(self, ctx: cmd.Context):
         """Let me gather my thoughts before trying again."""
         mctx = self.get_music_context(ctx)
@@ -212,6 +202,7 @@ class Music(cmd.Cog):
 
     @cmd.command()
     @cmd.check(check.bot_is_voice_connected)
+    @guild_only
     async def pause(self, ctx: cmd.Context) -> None:
         """Pause current playback."""
         if ctx.voice_client is None:
@@ -223,6 +214,7 @@ class Music(cmd.Cog):
 
     @cmd.command(aliases=["unpause"])
     @cmd.check(check.bot_is_voice_connected)
+    @guild_only
     async def resume(self, ctx: cmd.Context) -> None:
         """Resume paused playback."""
         if ctx.voice_client is None:
@@ -233,12 +225,14 @@ class Music(cmd.Cog):
             voice_client.resume()
 
     @cmd.command()
+    @guild_only
     async def stop(self, ctx: cmd.Context):
         """Stop playback immediately."""
         mctx = self.get_music_context(ctx)
         mctx.disconnect()
 
     @cmd.command(aliases=["pq"])
+    @guild_only
     async def clear(self, ctx: cmd.Context):
         """Drop any of the currently queued songs."""
         mctx = self.get_music_context(ctx)
@@ -246,6 +240,7 @@ class Music(cmd.Cog):
         mctx.disconnect()
 
     @cmd.command()
+    @guild_only
     async def song(self, ctx: cmd.Context, sticky: bool = False) -> None:
         """Display information about the current song."""
         if not isinstance(ctx.channel, discord.TextChannel):
@@ -258,6 +253,7 @@ class Music(cmd.Cog):
             atask(ctx.reply("Not playing anything at the moment."))
 
     @cmd.command(aliases=["q"])
+    @guild_only
     async def queue(self, ctx: cmd.Context):
         """Display information about the current song queue."""
         mctx = self.get_music_context(ctx)
@@ -274,6 +270,7 @@ class Music(cmd.Cog):
             atask(ctx.reply("Nothing queued at the moment."))
 
     @cmd.command(aliases=["n", "skip"])
+    @guild_only
     async def next(self, ctx: cmd.Context):
         """Skip the current song."""
         mctx = self.get_music_context(ctx)
@@ -283,6 +280,7 @@ class Music(cmd.Cog):
         await mctx.play_next()
 
     @cmd.command(aliases=["j"])
+    @guild_only
     async def join(self, ctx: cmd.Context, channel: Optional[discord.VoiceChannel] = None):
         """Make Bottica join a given voice channel if provided or issuer's voice channel."""
         if channel is None:
@@ -300,3 +298,83 @@ class Music(cmd.Cog):
         except AuthorNotInPlayingChannel as e:
             e.message = "I'm already playing in another channel, please join me instad :kiss:"
             raise e
+
+    @cmd.command(aliases=["sa", "seta", "set_announcement"])
+    @guild_only
+    async def announcement(
+        self,
+        ctx: cmd.Context,
+        member: Optional[discord.Member] = None,
+        url: str = "",
+    ) -> None:
+        """Set the provided song to be played when the user (or you) enters a voice channel."""
+        assert ctx.guild is not None
+
+        songs = await process_request(url)
+
+        if not songs:
+            raise FriendlyError("Sorry, I couldn't find anything. :sweat_smile:")
+
+        if len(songs) > 1:
+            raise FriendlyError(
+                "Hey bud. It's a few too many, try just one announcement for now, ok?",
+            )
+
+        guild_config = GuildConfig.get(ctx.guild.id)
+        user = member or ctx.author
+        self.song_registry.put(songs[0])
+        guild_config.announcements[user.id] = songs[0].key
+        guild_config.save()
+
+    @cmd.command(aliases=["ca", "cleara"])
+    @guild_only
+    async def clear_announcement(
+        self,
+        ctx: cmd.Context,
+        member: Optional[discord.Member] = None,
+    ) -> None:
+        """Clear the associated announcement song with the provided user (or you)."""
+        assert ctx.guild is not None
+        guild_config = GuildConfig.get(ctx.guild.id)
+        user = member or ctx.author
+        del guild_config.announcements[user.id]
+        guild_config.save()
+
+    def get_announcement(self, guild_id: int, member_id: int) -> Optional[SongInfo]:
+        """Get the announcement associated with provided member id at the provided guild."""
+        song_key = GuildConfig.get(guild_id).announcements.get(member_id)
+        if song_key is None:
+            return None
+
+        song = self.song_registry.get(song_key)
+        if song is None:
+            raise FriendlyError(
+                "Sorry, I couldn't find your announcement. Please set it again :sweat:",
+            )
+        return song
+
+    @cmd.command(aliases=["a"])
+    @guild_only
+    async def announce(self, ctx: cmd.Context, member: Optional[discord.Member] = None) -> None:
+        """Play the announcement associated with provided guild member of you."""
+        assert ctx.guild is not None
+        assert isinstance(ctx.author, discord.Member)
+
+        mctx = self.get_music_context(ctx)
+        if mctx.is_playing():
+            raise FriendlyError("I'm already playing something.")
+
+        if mctx.voice_channel is None:
+            if ctx.author.voice is None or not isinstance(
+                ctx.author.voice.channel,
+                discord.VoiceChannel,
+            ):
+                raise FriendlyError("You won't hear me ^^;")
+            await mctx.join_or_throw(ctx.author.voice.channel)
+
+        member = member or ctx.author
+        song = self.get_announcement(ctx.guild.id, member.id)
+        if song is None:
+            raise FriendlyError("Looks like you don't have an announcement set :smile:")
+
+        await mctx.play_announcement(song)

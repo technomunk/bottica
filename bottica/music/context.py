@@ -39,7 +39,7 @@ class SelectSong:
     def __init__(self, guild_id: int, registry: SongRegistry) -> None:
         super().__init__()
 
-        self._guild_config = GuildConfig(guild_id)
+        self._guild_config = GuildConfig.get(guild_id)
         self._song_set = SongSet(registry, path.join(GUILD_SET_FOLDER, f"{guild_id}.csv"))
         self._queue = SongQueue(registry)
         self._history = SongQueue(registry)
@@ -94,7 +94,7 @@ class MusicContext(SelectSong):
         self._guild = guild
 
         self._voice_client = voice_client
-        self._guild_config = GuildConfig(guild.id)
+        self._guild_config = GuildConfig.get(guild.id)
         self._current_song: Optional[SongInfo] = None
         self._to_cleanup = ""
 
@@ -127,6 +127,10 @@ class MusicContext(SelectSong):
         persist(self, self.filename)
 
     @property
+    def guild_id(self) -> int:
+        return self._guild.id
+
+    @property
     def filename(self) -> str:
         return path.join(GUILD_CONTEXT_FOLDER, f"{self._guild.id}.ctx")
 
@@ -136,7 +140,7 @@ class MusicContext(SelectSong):
     def is_paused(self) -> bool:
         return self._voice_client is not None and self._voice_client.is_paused()
 
-    async def join_or_throw(self, channel: discord.VoiceChannel):
+    async def join_or_throw(self, channel: discord.VoiceChannel) -> None:
         """Join provided voice channel or throw a relevant exception."""
         if (
             self.is_playing()
@@ -255,6 +259,11 @@ class MusicContext(SelectSong):
                 self.song_message.delete()
                 self.song_message = None
             self.disconnect()
+
+    async def play_announcement(self, song: SongInfo) -> None:
+        """Play the provided announcement at the current voice channel."""
+        self.song_queue.push(song)
+        await self.play_next()
 
     @property
     def voice_channel(self) -> Optional[discord.VoiceChannel]:
