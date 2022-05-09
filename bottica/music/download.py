@@ -2,7 +2,7 @@
 from functools import partial
 from logging import getLogger
 from os import path
-from typing import Iterable, NewType, Optional
+from typing import NewType, Optional
 
 from yt_dlp import YoutubeDL  # type: ignore
 
@@ -48,7 +48,7 @@ async def streamable_url(song: SongInfo, allow_caching: bool) -> str:
     return info.get("url", "")
 
 
-async def process_request(query: str) -> Iterable[SongInfo]:
+async def process_request(query: str) -> list[SongInfo]:
     """Process provided query and get the songs it requests in order."""
     req_info = await event_loop.run_in_executor(
         None,
@@ -66,7 +66,7 @@ async def process_request(query: str) -> Iterable[SongInfo]:
     req_type = req_info.get("_type", "video")
 
     if req_type == "playlist":
-        return filter(None, (_extract_song_info(req) for req in req_info["entries"]))
+        return list(filter(None, (_extract_song_info(req) for req in req_info["entries"])))
 
     song_info = _extract_song_info(req_info)
     return [song_info] if song_info else []
