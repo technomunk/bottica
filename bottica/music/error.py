@@ -21,6 +21,4 @@ class BotLacksVoicePermissions(FriendlyError):
 
 class InvalidURLError(FriendlyError):
     def __init__(self):
-        super().__init__(
-            "Heya, that does not look like a youtube url. I only know those :innocent:",
-        )
+        super().__init__("Sorry, I can't access that material. Try something else :innocent:")
