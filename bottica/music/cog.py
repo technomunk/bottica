@@ -68,6 +68,10 @@ class Music(cmd.Cog):
             len(self.contexts),
         )
 
+    @cmd.Cog.listener()
+    async def on_resumed(self):
+        _logger.debug("resuming")
+
     async def close(self):
         for mctx in self.contexts.values():
             mctx.save(mctx.filename)

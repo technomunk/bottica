@@ -5,6 +5,8 @@ Use caution when using while Bottica is running.
 
 import csv
 import logging
+import logging.handlers
+import sys
 from dataclasses import asdict, astuple
 from os import listdir, remove, replace, stat
 from os.path import isfile, join
@@ -182,6 +184,15 @@ def run(discord_token: str, sentry_token: str, log: str, notify: bool) -> None:
     logging.basicConfig(
         format="%(asctime)s:%(levelname)s:%(name)s:%(funcName)s: %(message)s",
         level=log_level,
+        handlers=[
+            logging.handlers.RotatingFileHandler(
+                "bottica-run.log",
+                encoding="utf8",
+                maxBytes=2**20,
+                backupCount=16,
+            ),
+            logging.StreamHandler(sys.stdout),
+        ],
     )
     logging.getLogger("discord").setLevel(logging.WARNING)
 
