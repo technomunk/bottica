@@ -70,7 +70,11 @@ class Music(cmd.Cog):
 
     @cmd.Cog.listener()
     async def on_resumed(self):
-        _logger.debug("resuming")
+        for voice_client in self.bot.voice_clients:
+            if isinstance(voice_client, discord.VoiceClient):
+                if mctx := self.contexts.get(voice_client.guild):
+                    _logger.debug("Updating MCTX voice client for %s", voice_client.guild.name)
+                    mctx.update_voice_client(voice_client)
 
     async def close(self):
         for mctx in self.contexts.values():

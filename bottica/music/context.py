@@ -288,6 +288,13 @@ class MusicContext(SelectSong):
             return None
         return cast(discord.VoiceChannel, self._voice_client.channel)
 
+    def update_voice_client(self, client: discord.VoiceClient) -> None:
+        """
+        Update the internal voice client to the provided one.
+        Used for correcting state after re-connecting.
+        """
+        self._voice_client = client
+
     async def _audio_source(self, song: SongInfo) -> discord.FFmpegAudio:
         filepath = path.join(AUDIO_FOLDER, song.filename)
         if path.exists(filepath):
