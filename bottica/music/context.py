@@ -181,7 +181,11 @@ class MusicContext(SelectSong):
 
     async def join_or_throw(self, channel: discord.VoiceChannel):
         """Join provided voice channel or throw a relevant exception."""
-        if self.is_playing() and self._voice_client.channel != channel:  # type: ignore
+        if (
+            self.is_playing()
+            and self._voice_client.channel != channel  # type: ignore
+            and has_listening_members(self._voice_client.channel)  # type: ignore
+        ):
             raise AuthorNotInPlayingChannel()
 
         if self._voice_client is None:
