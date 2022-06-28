@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 0.22.5
+
+### Added
+
++ I will no longer require you join me on `b.play` if I'm only playing the music to myself :innocent:
+
 ## 0.22.4
 
 ### Fixed
