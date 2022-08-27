@@ -1,0 +1,10 @@
+[Unit]
+Description=Bottica
+Wants=network-online.target
+After=network.target network-online.target
+
+[Service]
+User=bottica
+Group=bottica
+
+ExecStart=${BOTTICA_DIR}/.venv/bin/python3 -O ${BOTTICA_DIR}/bottica run --log DEBUG --notify
