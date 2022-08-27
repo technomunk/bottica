@@ -8,3 +8,6 @@ User=bottica
 Group=bottica
 
 ExecStart=${BOTTICA_DIR}/.venv/bin/python3 -O ${BOTTICA_DIR}/bottica run --log DEBUG --notify
+
+[Install]
+WantedBy=multi-user.target
