@@ -7,6 +7,8 @@ After=network.target network-online.target
 User=bottica
 Group=bottica
 
+WorkingDirectory=${BOTTICA_DIR}
+
 ExecStart=${BOTTICA_DIR}/.venv/bin/python3 -O ${BOTTICA_DIR}/bottica run --log DEBUG --notify
 
 [Install]
