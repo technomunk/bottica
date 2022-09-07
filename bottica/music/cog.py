@@ -12,7 +12,7 @@ import discord.ext.commands as cmd
 from bottica import response
 from bottica.file import GUILD_CONTEXT_FOLDER, SONG_REGISTRY_FILENAME
 from bottica.infrastructure.error import atask
-from bottica.infrastructure.util import format_duration, has_listening_members, is_listening
+from bottica.infrastructure.util import format_duration, has_listening_members, is_listening, onoff
 from bottica.music import check
 
 from .context import MusicContext
@@ -180,7 +180,7 @@ class Music(cmd.Cog):
         """Enable, disable or check shuffle mode."""
         mctx = self.get_music_context(ctx)
         if enabled is None:
-            atask(ctx.reply(f"Shuffle is {response.enabled_disabled(mctx.shuffle_enabled)}."))
+            atask(ctx.reply(f"Shuffle is {onoff(mctx.shuffle_enabled)}."))
             return
         mctx.shuffle_enabled = enabled
 
@@ -194,7 +194,7 @@ class Music(cmd.Cog):
         """
         mctx = self.get_music_context(ctx)
         if enabled is None:
-            atask(ctx.reply(f"Radio mode is {response.enabled_disabled(mctx.radio_enabled)}"))
+            atask(ctx.reply(f"Radio mode is {onoff(mctx.radio_enabled)}"))
             return
         mctx.radio_enabled = enabled
         if enabled and not mctx.is_playing():

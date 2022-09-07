@@ -3,7 +3,6 @@ Bottica data management tooling.
 Use caution when using while Bottica is running.
 """
 
-import asyncio
 import csv
 import logging
 import logging.handlers
