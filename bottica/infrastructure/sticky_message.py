@@ -26,12 +26,12 @@ class StickyMessage:
 
     async def update(self, content=None, **kwargs):
         channel = self._message.channel
-        history = await channel.history(limit=1).flatten()
-        if history[0] != self._message:
-            atask(self._message.delete())
-            self._message = await channel.send(content, **kwargs)
-        else:
-            atask(self._message.edit(content=content, **kwargs))
+        async for message in channel.history(limit=1):
+            if message != self._message:
+                atask(self._message.delete())
+                self._message = await channel.send(content, **kwargs)
+            else:
+                atask(self._message.edit(content=content, **kwargs))
 
     def delete(self):
         atask(self._message.delete())
