@@ -24,8 +24,6 @@ ALLOWED_INFO_TYPES = ("video", "url")
 _logger = logging.getLogger(__name__)
 
 
-# We are using third party API design
-# pylint: disable=no-self-use
 class Music(cmd.Cog):
     def __init__(self, bot: cmd.Bot) -> None:
         self.bot = bot

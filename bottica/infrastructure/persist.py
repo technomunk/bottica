@@ -25,7 +25,7 @@ class _Missing:
 
 
 # This is an interface, so we need self and kwargs for API
-# pylint: disable=no-self-use,unused-argument
+# pylint: disable=unused-argument
 class Converter(Generic[VarT]):
     """Convert data to and from form that is saved to file."""
 

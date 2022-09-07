@@ -71,7 +71,7 @@ async def pre_invoke(ctx: cmd.Context):
     if should_sass(ctx):
         atask(ctx.reply(make_sass(ctx)))
     else:
-        atask(ctx.trigger_typing())
+        atask(ctx.typing())
 
 
 @bot.after_invoke
@@ -101,9 +101,12 @@ async def jealousy(message: discord.Message):
 def run_bot(discord_token: str = "", notify: bool = False) -> None:
     """Run Bottica until cancelled."""
     register_commands(bot)
-    bot.add_cog(Music(bot))
 
-    bot.notify = notify
+    async def runner():
+        async with bot:
+            await bot.add_cog(Music(bot))
+            bot.notify = notify
+            bot.on_command_error = handle_command_error  # type: ignore
+            await bot.start(discord_token)
 
-    bot.on_command_error = handle_command_error  # type: ignore
-    bot.run(discord_token)
+    event_loop.run_until_complete(runner())

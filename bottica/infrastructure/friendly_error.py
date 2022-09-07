@@ -58,11 +58,11 @@ def _bot_missing_any_role(error: BotMissingAnyRole) -> str:
 
 
 def _missing_permissions(error: MissingPermissions) -> str:
-    return f"You need to have {human_format(error.missing_perms)} permissions for that!"
+    return f"You need to have {human_format(error.missing_permissions)} permissions for that!"
 
 
 def _bot_missing_permissions(error: BotMissingPermissions) -> str:
-    return f"I need to have {human_format(error.missing_perms)} permissions for that!"
+    return f"I need to have {human_format(error.missing_permissions)} permissions for that!"
 
 
 def _bad_union_argument(error: BadUnionArgument) -> str:
