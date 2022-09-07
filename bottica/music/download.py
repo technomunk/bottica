@@ -25,7 +25,7 @@ _loader = YoutubeDL(
         "ignoreerrors": True,
         "cookiefile": path.join(DATA_FOLDER, "cookies.txt"),
         "quiet": True,
-        "noplaylist": True,
+        "noprogress": True,
     }
 )
 
@@ -42,8 +42,7 @@ async def streamable_url(song: SongInfo, allow_caching: bool) -> str:
 
     if allow_caching:
         # Run the download completely asynchronously without blocking
-        task = event_loop.run_in_executor(None, partial(_download_and_normalize, info))
-        atask(task)
+        atask(_download_and_normalize(info))
 
     return info.get("url", "")
 
@@ -57,8 +56,7 @@ async def download_and_normalize(song: SongInfo):
             download=False,
         ),
     )
-    task = event_loop.run_in_executor(None, partial(_download_and_normalize, info))
-    atask(task)
+    await _download_and_normalize(info)
 
 
 async def process_request(query: str) -> Iterable[SongInfo]:
@@ -99,12 +97,19 @@ def _extract_song_info(info: ReqInfo) -> Optional[SongInfo]:
     )
 
 
-def _download_and_normalize(info: ReqInfo) -> None:
-    ie_info = _loader.process_ie_result(info, download=True)
+async def _download_and_normalize(info: ReqInfo) -> None:
+    ie_info = await event_loop.run_in_executor(
+        None,
+        partial(
+            _loader.process_ie_result,
+            info,
+            download=True,
+        ),
+    )
     filename = ie_info["requested_downloads"][0]["filepath"]
 
     if not path.exists(filename):
         _logger.error("Could not download %s", filename)
         return
 
-    normalize_song(filename)
+    await normalize_song(filename)

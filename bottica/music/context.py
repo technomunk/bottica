@@ -13,13 +13,14 @@ from typing import Optional, cast
 import discord
 
 from bottica.file import AUDIO_FOLDER, GUILD_CONTEXT_FOLDER, GUILD_SET_FOLDER
-from bottica.infrastructure import converters
+from bottica.infrastructure import cmd, converters
 from bottica.infrastructure.config import GuildConfig
 from bottica.infrastructure.error import atask
 from bottica.infrastructure.persist import Field, Persist
 from bottica.infrastructure.sticky_message import StickyMessage
 from bottica.infrastructure.util import format_duration, has_listening_members
 from bottica.music.download import download_and_normalize, streamable_url
+from bottica.music.normalize import stream_normalize_ffmpeg_args
 
 from .error import AuthorNotInPlayingChannel
 from .song import SongInfo, SongQueue, SongRegistry, SongSet
@@ -27,7 +28,7 @@ from .song import SongInfo, SongQueue, SongRegistry, SongSet
 _logger = logging.getLogger(__name__)
 
 
-FFMPEG_OPTIONS: dict = {"options": "-vn"}
+DISCARD_FFMPEG_FLUFF = cmd.join(["-hide_banner", "-vn", "-sn"])
 
 
 class SelectSong(Persist):
@@ -268,7 +269,7 @@ class MusicContext(SelectSong):
     async def _audio_source(self, song: SongInfo) -> discord.FFmpegAudio:
         filepath = path.join(AUDIO_FOLDER, song.filename)
         if path.exists(filepath):
-            return discord.FFmpegOpusAudio(filepath, **FFMPEG_OPTIONS)
+            return discord.FFmpegOpusAudio(filepath, before_options=DISCARD_FFMPEG_FLUFF)
 
         should_cache = (
             self._guild_config.max_cached_duration == -1
@@ -276,4 +277,8 @@ class MusicContext(SelectSong):
         )
         url = await streamable_url(song, should_cache)
 
-        return discord.FFmpegPCMAudio(url, **FFMPEG_OPTIONS)
+        return discord.FFmpegPCMAudio(
+            url,
+            before_options=DISCARD_FFMPEG_FLUFF,
+            # options=stream_normalize_ffmpeg_args(),
+        )

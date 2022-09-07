@@ -21,10 +21,9 @@ from bottica.version import notify_of_new_changes
 
 # Not my fault discord type-info sucks
 # pylint: disable=assigning-non-slot
-intents = discord.Intents.default()
+intents = discord.Intents.all()
 intents.typing = False
 intents.presences = False
-intents.members = True
 _logger = logging.getLogger(__name__)
 
 

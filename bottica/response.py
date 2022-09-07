@@ -45,9 +45,3 @@ async def random_fail(ctx: commands.Context):
 
 async def random_success(ctx: commands.Context):
     return await ctx.reply(random.choice(SUCCESSES), delete_after=DEFAULT_TIMEOUT)
-
-
-def enabled_disabled(enabled: bool) -> str:
-    if enabled:
-        return "enabled"
-    return "disabled"
