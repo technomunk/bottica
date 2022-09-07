@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 0.23.0
+
+### Added
+
++ I will now loud-normalize streamed (non-cached) music as well!
+
+### Changed
+
+* Radio is now a separate mode from the queue. Meaning queueing songs will work while radio mode is enabled.
+* Generally cleaned up my codebase, so there should be fewer problems :fingers_crossed:
+
 ## 0.22.5
 
 ### Added
