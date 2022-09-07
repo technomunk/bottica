@@ -280,5 +280,5 @@ class MusicContext(SelectSong):
         return discord.FFmpegPCMAudio(
             url,
             before_options=DISCARD_FFMPEG_FLUFF,
-            # options=stream_normalize_ffmpeg_args(),
+            options=stream_normalize_ffmpeg_args(),
         )

@@ -28,7 +28,7 @@ def stream_normalize_ffmpeg_args(
         _loudnorm_options(
             i=loudness_level,
             lra=loudness_range,
-            true_peak=true_peak,
+            tp=true_peak,
         ),
     ]
     return cmd.join(args)
