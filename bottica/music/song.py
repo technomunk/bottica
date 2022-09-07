@@ -10,8 +10,7 @@ from contextlib import contextmanager
 from dataclasses import asdict, astuple, dataclass
 from os import path
 from random import randrange
-from typing import Deque, Dict, Generator, Iterable, Optional, Set, Tuple, cast
-
+from typing import Callable, Deque, Dict, Generator, Iterable, Iterator, Optional, Set, Tuple, cast
 from dataclass_csv import DataclassReader
 
 FILE_ENCODING = "utf8"
@@ -169,66 +168,53 @@ class SongQueue(_SongKeyCollection):
 
     def __init__(self, registry: SongRegistry) -> None:
         super().__init__(registry)
-        self._head: Optional[SongKey] = None
-        self._tail: Deque[SongKey] = deque()
+        self._data: Deque[SongKey] = deque()
         self._duration: int = 0
 
     def __len__(self) -> int:
-        return len(self._tail) + int(self._head is not None)
-
-    @property
-    def head(self) -> Optional[SongInfo]:
-        return self._deref(self._head) if self._head is not None else None
+        return len(self._data)
 
     def pop(self) -> Optional[SongInfo]:
         """
         Move the next song to the 'head' position if possible.
         Returns the new head.
         """
-        if self._tail:
-            if self._head is not None:
-                self._duration -= self._deref(self._head).duration
-            self._head = self._tail.popleft()
-        else:
-            self._duration = 0
-            self._head = None
-        return self.head
+        if self._data:
+            song = self._deref(self._data.popleft())
+            self._duration -= song.duration
+            return song
+        self._duration = 0
+        return None
 
     def pop_random(self) -> Optional[SongInfo]:
         """
         Move a random song from the tail to the 'head' position if possible.
         Returns the new head.
         """
-        if self._tail:
-            if self._head is not None:
-                self._duration -= self._deref(self._head).duration
-            idx = randrange(len(self._tail))
-            self._head = self._tail[idx]
-            del self._tail[idx]
-        else:
-            self._duration = 0
-            self._head = None
-        return self.head
+        if self._data:
+            idx = randrange(len(self._data))
+            song = self._deref(self._data[idx])
+            del self._data[idx]
+            self._duration -= song.duration
+            return song
+        self._duration = 0
+        return None
 
     def push(self, song: SongInfo) -> None:
         self._duration += song.duration
-        self._tail.append(song.key)
+        self._data.append(song.key)
 
     def extend(self, songs: Iterable[SongInfo]) -> None:
         for song in songs:
-            self._tail.append(song.key)
             self._duration += song.duration
+            self._data.append(song.key)
 
     def clear(self) -> None:
-        self._head = None
-        self._tail.clear()
+        self._data.clear()
         self._duration = 0
 
-    def __iter__(self) -> Generator[SongInfo, None, None]:
-        if self._head is not None:
-            yield self._deref(self._head)
-        for key in self._tail:
-            yield self._deref(key)
+    def __iter__(self) -> Iterator[SongInfo]:
+        return map(self._deref, self._data)
 
     @property
     def duration(self) -> int:
@@ -267,6 +253,40 @@ class SongSet(_SongKeyCollection):
                 self._header_written = True
             writer.writerow(song.key)
         return True
+
+    def select_random(
+        self,
+        *,
+        block_list: Iterable[SongInfo] = None,
+        allow_predicate: Callable[[SongInfo], bool] = None,
+    ) -> Optional[SongInfo]:
+        if block_list:
+            if isinstance(block_list, SongQueue):
+                # Known hotpath optimization
+                # pylint: disable=protected-access
+                block_set = set(block_list._data)
+            else:
+                block_set = set(song.key for song in block_list)
+
+            if allow_predicate:
+                keys = list(
+                    key
+                    for key in self._data
+                    if key not in block_set and allow_predicate(self._deref(key))
+                )
+            else:
+                keys = list(key for key in self._data if key not in block_set)
+
+        else:
+            if allow_predicate:
+                keys = list(key for key in self._data if allow_predicate(self._deref(key)))
+            else:
+                keys = list(key for key in self._data)
+
+        if keys:
+            idx = randrange(len(keys))
+            return self._deref(keys[idx])
+        return None
 
     def __contains__(self, song: SongInfo) -> bool:
         return song.key in self._data

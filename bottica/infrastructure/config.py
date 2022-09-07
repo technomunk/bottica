@@ -27,7 +27,6 @@ class GuildConfig:
         if config := cls.__instances.get(guild_id):
             return config
 
-        _logger.debug("allocating new guild config")
         config = super().__new__(cls)
         cls.__instances[guild_id] = config
         return config

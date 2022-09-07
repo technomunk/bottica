@@ -5,7 +5,6 @@ Additionally handles state persistence through restarts.
 """
 from __future__ import annotations
 
-import enum
 import logging
 from functools import partial
 from os import path
@@ -31,93 +30,58 @@ _logger = logging.getLogger(__name__)
 FFMPEG_OPTIONS: dict = {"options": "-vn"}
 
 
-class SongSelectMode(enum.Enum):
-    QUEUE = "queue"
-    SHUFFLE_QUEUE = "shuffle"
-    RADIO = "radio"
-
-
 class SelectSong(Persist):
-    _select_mode = Field(SongSelectMode.QUEUE, converter=converters.Enum(SongSelectMode))
+    shuffle_enabled = Field(False)
+    radio_enabled = Field(False)
 
     def __init__(self, guild_id: int, registry: SongRegistry) -> None:
         super().__init__()
 
         self._guild_config = GuildConfig(guild_id)
         self._song_set = SongSet(registry, path.join(GUILD_SET_FOLDER, f"{guild_id}.csv"))
-        self._select_queue = SongQueue(registry)
-        self._history_queue = SongQueue(registry)
-
-        if self._select_mode != SongSelectMode.QUEUE:
-            self._update_select_mode(self._select_mode)
+        self._queue = SongQueue(registry)
+        self._history = SongQueue(registry)
+        self._next_song: Optional[SongInfo] = None
 
     def clear(self) -> None:
-        self._select_queue.clear()
-        self._history_queue.clear()
-        self._select_mode = SongSelectMode.QUEUE
+        self._queue.clear()
+        self._history.clear()
+        self.shuffle_enabled = False
+        self.radio_enabled = False
 
-    def select_next(self) -> Optional[SongInfo]:
+    def select_next_song(self) -> Optional[SongInfo]:
         """Select the next song to play (mutably)."""
-        if self.is_radio:
-            if self._select_queue.head is not None:
-                self._history_queue.push(self._select_queue.head)
+        song = self._next_song or self._pick_song()
+        self._next_song = self._pick_song()
+        return song
 
-            if len(self._history_queue) > self._guild_config.min_repeat_interval:
-                song = self._history_queue.pop()
-                assert song is not None
-                self._select_queue.push(song)
+    def _pick_song(self) -> Optional[SongInfo]:
+        if self._queue:
+            song = self._queue.pop_random() if self.shuffle_enabled else self._queue.pop()
+            assert song
 
-            # Might happen if the min repeat interval is smaller than the guild set
-            if len(self._select_queue) <= 1:
-                self._select_queue.extend(self._history_queue)
-                self._history_queue.clear()
+            while len(self._history) > self._guild_config.min_repeat_interval:
+                self._history.pop()
 
-            return self._select_queue.pop_random()
+            self._history.push(song)
+            return song
 
-        if self.is_shuffling:
-            return self._select_queue.pop_random()
+        if self.radio_enabled:
+            return self._song_set.select_random(block_list=self._history)
 
-        return self._select_queue.pop()
-
-    def _update_select_mode(self, value: SongSelectMode):
-        # False positive? The ordering matters and makes enough sense
-        # pylint: disable=consider-using-in
-        if value == SongSelectMode.RADIO or self._select_mode == SongSelectMode.RADIO:
-            self._history_queue.clear()
-
-        if self._select_mode == SongSelectMode.RADIO:
-            self._select_queue.clear()
-
-        if value == SongSelectMode.RADIO:
-            self._select_queue.clear()
-            self._select_queue.extend(self._song_set)
+        return None
 
     @property
-    def select_mode(self) -> SongSelectMode:
-        return self._select_mode
-
-    @select_mode.setter
-    def select_mode(self, value: SongSelectMode):
-        if self._select_mode == value:
-            return
-        self._update_select_mode(value)
-        self._select_mode = value
+    def next_song(self) -> Optional[SongInfo]:
+        return self._next_song
 
     @property
     def song_queue(self) -> SongQueue:
-        return self._select_queue
+        return self._queue
 
     @property
     def song_set(self) -> SongSet:
         return self._song_set
-
-    @property
-    def is_shuffling(self) -> bool:
-        return self._select_mode == SongSelectMode.SHUFFLE_QUEUE
-
-    @property
-    def is_radio(self) -> bool:
-        return self._select_mode == SongSelectMode.RADIO
 
 
 class MusicContext(SelectSong):
@@ -138,6 +102,7 @@ class MusicContext(SelectSong):
 
         self._voice_client = voice_client
         self._guild_config = GuildConfig(guild.id)
+        self._current_song: Optional[SongInfo] = None
 
         if text_channel is not None:
             self.text_channel = text_channel
@@ -152,10 +117,8 @@ class MusicContext(SelectSong):
         # we know the text channel will get loaded, so hackily ignore invalid state
         mctx = cls(guild, cast(discord.TextChannel, None), None, registry)
         await mctx.load(mctx.filename, client=client)
-        mctx._update_select_mode(mctx._select_mode)
 
         if mctx._voice_client is not None:
-            _logger.debug("resuming playback")
             await mctx.play_next()
 
         return mctx
@@ -198,6 +161,7 @@ class MusicContext(SelectSong):
             self._voice_client.stop()
             atask(self._voice_client.disconnect())
             self._voice_client = None
+        self._current_song = None
 
     async def display_current_song_info(
         self,
@@ -207,14 +171,14 @@ class MusicContext(SelectSong):
         if channel is not None:
             self.text_channel = channel
 
-        song = self.song_queue.head
-        if song is None:
+        if self._current_song is None:
             if self.song_message is not None:
                 self.song_message.delete()
                 self.song_message = None
             return
 
-        embed = discord.Embed(description=f"{song.pretty_link} <> {format_duration(song.duration)}")
+        duration = format_duration(self._current_song.duration)
+        embed = discord.Embed(description=f"{self._current_song.pretty_link} <> {duration}")
 
         if sticky:
             if self.song_message is None:
@@ -245,9 +209,9 @@ class MusicContext(SelectSong):
                 atask(self.song_message.update(embed=discord.Embed(description="...")))
             return
 
-        song = self.select_next()
+        self._current_song = self.select_next_song()
 
-        if song is None:
+        if self._current_song is None:
             # clean up after automatic playback
             if self.is_playing():
                 self._voice_client.stop()
@@ -259,8 +223,8 @@ class MusicContext(SelectSong):
         if self.is_playing():
             self._voice_client.pause()
 
-        _logger.debug("playing %s in %s", song.key, self._guild.name)
-        audio = await self._audio_source(song)
+        _logger.debug("playing %s in %s", self._current_song.key, self._guild.name)
+        audio = await self._audio_source(self._current_song)
         self._voice_client.play(audio, after=partial(self._handle_after))
 
         if self.song_message is not None:
@@ -268,6 +232,7 @@ class MusicContext(SelectSong):
 
     def _handle_after(self, error: Optional[Exception]) -> None:
         """Command ran after playback has stopped"""
+        self._current_song = None
         if error is not None:
             _logger.error("encountered error: %s", error)
             return
@@ -277,13 +242,12 @@ class MusicContext(SelectSong):
             return
 
         # queue still includes the current song, so check if length is > 1
-        if len(self._select_queue) > 1:
+        if len(self._queue) > 1 or self.radio_enabled:
             atask(self.play_next())
         else:
             if self.song_message is not None:
                 self.song_message.delete()
                 self.song_message = None
-            self._select_queue.clear()
             self.disconnect()
 
     @property
