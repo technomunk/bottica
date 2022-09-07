@@ -48,6 +48,19 @@ async def streamable_url(song: SongInfo, allow_caching: bool) -> str:
     return info.get("url", "")
 
 
+async def download_and_normalize(song: SongInfo):
+    info = await event_loop.run_in_executor(
+        None,
+        partial(
+            _loader.extract_info,
+            song.link,
+            download=False,
+        ),
+    )
+    task = event_loop.run_in_executor(None, partial(_download_and_normalize, info))
+    atask(task)
+
+
 async def process_request(query: str) -> Iterable[SongInfo]:
     """Process provided query and get the songs it requests in order."""
     req_info = await event_loop.run_in_executor(

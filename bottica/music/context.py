@@ -19,7 +19,7 @@ from bottica.infrastructure.error import atask
 from bottica.infrastructure.persist import Field, Persist
 from bottica.infrastructure.sticky_message import StickyMessage
 from bottica.infrastructure.util import format_duration, has_listening_members
-from bottica.music.download import streamable_url
+from bottica.music.download import download_and_normalize, streamable_url
 
 from .error import AuthorNotInPlayingChannel
 from .song import SongInfo, SongQueue, SongRegistry, SongSet
@@ -210,6 +210,8 @@ class MusicContext(SelectSong):
             return
 
         self._current_song = self.select_next_song()
+        if self._next_song and self._next_song.duration <= self._guild_config.max_cached_duration:
+            atask(download_and_normalize(self._next_song))
 
         if self._current_song is None:
             # clean up after automatic playback
