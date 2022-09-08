@@ -102,11 +102,13 @@ def run_bot(discord_token: str = "", notify: bool = False) -> None:
     register_commands(bot)
 
     async def runner():
-        async with bot:
-            await bot.add_cog(Music(bot))
-            bot.notify = notify
-            bot.on_command_error = handle_command_error  # type: ignore
-            await bot.start(discord_token)
-        await bot.close()
+        try:
+            async with bot:
+                await bot.add_cog(Music(bot))
+                bot.notify = notify
+                bot.on_command_error = handle_command_error  # type: ignore
+                await bot.start(discord_token)
+        finally:
+            await bot.close()
 
     event_loop.run_until_complete(runner())

@@ -51,7 +51,7 @@ class Music(cmd.Cog):
             filename = path.join(GUILD_CONTEXT_FOLDER, f"{guild.id}.ctx")
             if path.exists(filename):
                 try:
-                    mctx = await MusicContext.resume(self.bot, guild, self.song_registry)
+                    mctx = await MusicContext.restore(self.bot, guild, self.song_registry)
                     self.contexts[guild.id] = mctx
 
                 # In this case, we indeed want to catch any and all non-exit exceptions and log them

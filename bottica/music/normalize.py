@@ -65,7 +65,7 @@ async def normalize_song(
     if not keep_old_file:
         try:
             os.remove(src_file)
-        except FileNotFoundError:
+        except (OSError, FileNotFoundError):
             pass
 
 
@@ -115,7 +115,6 @@ async def _run_first_pass(src_file: str, loudnorm_args: dict) -> dict[str, Any]:
     code = await process.wait()
     _, output = await process.communicate()
     if code != 0:
-        print(output)
         raise RuntimeWarning(f"ffmpeg return error code: {code}")
 
     return _read_output(output.decode())

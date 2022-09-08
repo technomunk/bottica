@@ -6,6 +6,7 @@ Additionally handles state persistence through restarts.
 from __future__ import annotations
 
 import logging
+import os
 from functools import partial
 from os import path
 from typing import Optional, cast
@@ -19,7 +20,7 @@ from bottica.infrastructure.error import atask
 from bottica.infrastructure.persist import Field, Persist
 from bottica.infrastructure.sticky_message import StickyMessage
 from bottica.infrastructure.util import format_duration, has_listening_members
-from bottica.music.download import download_and_normalize, streamable_url
+from bottica.music.download import download_song
 from bottica.music.normalize import stream_normalize_ffmpeg_args
 
 from .error import AuthorNotInPlayingChannel, InvalidURLError
@@ -28,7 +29,7 @@ from .song import SongInfo, SongQueue, SongRegistry, SongSet
 _logger = logging.getLogger(__name__)
 
 
-DISCARD_FFMPEG_FLUFF = cmd.join(["-hide_banner", "-vn", "-sn"])
+DISCARD_FFMPEG_FLUFF = cmd.join(["-vn", "-sn"])
 
 
 class SelectSong(Persist):
@@ -42,7 +43,6 @@ class SelectSong(Persist):
         self._song_set = SongSet(registry, path.join(GUILD_SET_FOLDER, f"{guild_id}.csv"))
         self._queue = SongQueue(registry)
         self._history = SongQueue(registry)
-        self._next_song: Optional[SongInfo] = None
 
     def clear(self) -> None:
         self._queue.clear()
@@ -50,31 +50,21 @@ class SelectSong(Persist):
         self.shuffle_enabled = False
         self.radio_enabled = False
 
-    def select_next_song(self) -> Optional[SongInfo]:
-        """Select the next song to play (mutably)."""
-        song = self._next_song or self._pick_song()
-        self._next_song = self._pick_song()
-        return song
-
-    def _pick_song(self) -> Optional[SongInfo]:
+    def pick_song(self) -> Optional[SongInfo]:
+        """Mutably select song from the queue of radio set."""
         if self._queue:
             song = self._queue.pop_random() if self.shuffle_enabled else self._queue.pop()
-            assert song
 
-            while len(self._history) > self._guild_config.min_repeat_interval:
-                self._history.pop()
+        while len(self._history) > self._guild_config.min_repeat_interval:
+            self._history.pop()
 
+        if not song and self.radio_enabled:
+            song = self._song_set.select_random(block_list=self._history)
+
+        if song:
             self._history.push(song)
-            return song
 
-        if self.radio_enabled:
-            return self._song_set.select_random(block_list=self._history)
-
-        return None
-
-    @property
-    def next_song(self) -> Optional[SongInfo]:
-        return self._next_song
+        return song
 
     @property
     def song_queue(self) -> SongQueue:
@@ -104,12 +94,13 @@ class MusicContext(SelectSong):
         self._voice_client = voice_client
         self._guild_config = GuildConfig(guild.id)
         self._current_song: Optional[SongInfo] = None
+        self._to_cleanup = ""
 
         if text_channel is not None:
             self.text_channel = text_channel
 
     @classmethod
-    async def resume(
+    async def restore(
         cls,
         client: discord.Client,
         guild: discord.Guild,
@@ -119,7 +110,7 @@ class MusicContext(SelectSong):
         mctx = cls(guild, cast(discord.TextChannel, None), None, registry)
         await mctx.load(mctx.filename, client=client)
 
-        if mctx._voice_client is not None:
+        if mctx._voice_client is not None and mctx._current_song:
             await mctx.play_next()
 
         return mctx
@@ -163,6 +154,7 @@ class MusicContext(SelectSong):
             atask(self._voice_client.disconnect())
             self._voice_client = None
         self._current_song = None
+        self._cleanup_source()
 
     async def display_current_song_info(
         self,
@@ -210,10 +202,7 @@ class MusicContext(SelectSong):
                 atask(self.song_message.update(embed=discord.Embed(description="...")))
             return
 
-        self._current_song = self.select_next_song()
-        if self._next_song and self._next_song.duration <= self._guild_config.max_cached_duration:
-            atask(download_and_normalize(self._next_song))
-
+        self._current_song = self.pick_song()
         self.save(self.filename)
 
         if self._current_song is None:
@@ -245,6 +234,8 @@ class MusicContext(SelectSong):
 
     def _handle_after(self, error: Optional[Exception]) -> None:
         """Command ran after playback has stopped"""
+        self._cleanup_source()
+
         self._current_song = None
         if error is not None:
             _logger.error("encountered error: %s", error)
@@ -281,15 +272,26 @@ class MusicContext(SelectSong):
         if path.exists(filepath):
             return discord.FFmpegOpusAudio(filepath, before_options=DISCARD_FFMPEG_FLUFF)
 
-        should_cache = (
+        cache = (
             self._guild_config.max_cached_duration == -1
             or song.duration <= self._guild_config.max_cached_duration
         )
-        url = await streamable_url(song, should_cache)
+        source = await download_song(song, cache)
 
+        self._to_cleanup = source
         return discord.FFmpegPCMAudio(
-            url,
+            source,
             before_options=DISCARD_FFMPEG_FLUFF,
             options=stream_normalize_ffmpeg_args(),
-            stderr=open(f"{song.filename}.log", "w", encoding="utf8"),
         )
+
+    def _cleanup_source(self) -> None:
+        if not self._to_cleanup:
+            return
+
+        try:
+            os.remove(self._to_cleanup)
+        except (OSError, FileNotFoundError):
+            pass
+
+        self._to_cleanup = ""

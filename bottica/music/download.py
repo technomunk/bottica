@@ -2,15 +2,18 @@
 from functools import partial
 from logging import getLogger
 from os import path
-from typing import Iterable, NewType, Optional
+from typing import Iterable, NewType, Optional, cast
 
 from yt_dlp import YoutubeDL  # type: ignore
 
 from bottica.file import AUDIO_FOLDER, DATA_FOLDER
+from bottica.infrastructure import file
 from bottica.infrastructure.error import atask, event_loop
+from bottica.infrastructure.friendly_error import FriendlyError
 from bottica.music.error import InvalidURLError
 from bottica.music.normalize import normalize_song
 
+from .song import EXTENSION as SONG_EXTENSION
 from .song import SongInfo
 
 ReqInfo = NewType("ReqInfo", dict)
@@ -26,40 +29,38 @@ _loader = YoutubeDL(
         "cookiefile": path.join(DATA_FOLDER, "cookies.txt"),
         "quiet": True,
         "noprogress": True,
+        "no_warnings": True,
+        "nopart": True,
     }
 )
 
 
-async def streamable_url(song: SongInfo, allow_caching: bool) -> str:
-    info = await event_loop.run_in_executor(
-        None,
-        partial(
-            _loader.extract_info,
-            song.link,
-            download=False,
-        ),
-    )
+class DownloadError(FriendlyError):
+    def __init__(self):
+        super().__init__("Sorry, I couldn't download provided url :(")
 
-    if not info:
+
+async def download_song(song: SongInfo | ReqInfo, keep: bool) -> str:
+    """
+    Download provided song data. Returns filename of the streamed file.
+    If cache is True - once the song is downloaded it will be loud-normalized, compressed and saved to song.filename.
+    """
+    if isinstance(song, dict):
+        req = song
+        song = cast(SongInfo, _extract_song_info(req))
+    else:
+        req = await _get_info(song)
+
+    if not req:
         raise InvalidURLError()
 
-    if allow_caching:
-        # Run the download completely asynchronously without blocking
-        atask(_download_and_normalize(info))
+    task = _download_and_normalize if keep else _download
+    atask(task(req))
 
-    return info.get("url", "")
+    filename = path.join(AUDIO_FOLDER, song.filename.replace(f".{SONG_EXTENSION}", f".{req.get('ext', '')}"))
+    await file.wait_until_available(filename, 2)
 
-
-async def download_and_normalize(song: SongInfo):
-    info = await event_loop.run_in_executor(
-        None,
-        partial(
-            _loader.extract_info,
-            song.link,
-            download=False,
-        ),
-    )
-    await _download_and_normalize(info)
+    return filename
 
 
 async def process_request(query: str) -> Iterable[SongInfo]:
@@ -100,19 +101,59 @@ def _extract_song_info(info: ReqInfo) -> Optional[SongInfo]:
     )
 
 
-async def _download_and_normalize(info: ReqInfo) -> None:
+async def _get_info(song: SongInfo) -> ReqInfo:
+    return await event_loop.run_in_executor(
+        None,
+        partial(
+            _loader.extract_info,
+            song.link,
+            download=False,
+        ),
+    )
+
+
+async def _download_and_normalize(req: ReqInfo):
+    filename = await _download(req)
+    await normalize_song(filename)
+
+
+async def _download(req: ReqInfo) -> str:
     ie_info = await event_loop.run_in_executor(
         None,
         partial(
             _loader.process_ie_result,
-            info,
+            req,
             download=True,
         ),
     )
-    filename = ie_info["requested_downloads"][0]["filepath"]
 
-    if not path.exists(filename):
-        _logger.error("Could not download %s", filename)
-        return
+    if not ie_info:
+        raise DownloadError()
 
-    await normalize_song(filename)
+    return ie_info["requested_downloads"][0]["filepath"]
+    # # fmt: off
+    # command = [
+    #     "ffmpeg",
+    #     "-v", "error",
+    #     "-y",
+    #     "-nostdin",
+    #     "-vn",  # no video
+    #     "-sn",  # no audio
+    #     "-i", url,
+    #     "-map_chapters", "-1",
+    #     "-map_metadata", "-1",
+    #     filename,
+    # ]
+    # # fmt: on
+    # process = await create_subprocess_shell(
+    #     cmd.join(command),
+    #     stdin=subprocess.DEVNULL,
+    #     stderr=subprocess.PIPE,
+    #     stdout=subprocess.DEVNULL,
+    # )
+
+    # error_code = await process.wait()
+    # if error_code:
+    #     _, output = await process.communicate()
+    #     _logger.error(output.decode())
+    #     raise DownloadError()

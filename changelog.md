@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Improved
+
++ Streaming has been rework. I should not longer abruptly skip streamed songs :sweat_smile:
+
 ## 0.23.0
 
 ### Added
