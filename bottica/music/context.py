@@ -52,6 +52,8 @@ class SelectSong(Persist):
 
     def pick_song(self) -> Optional[SongInfo]:
         """Mutably select song from the queue of radio set."""
+        song = None
+
         if self._queue:
             song = self._queue.pop_random() if self.shuffle_enabled else self._queue.pop()
 
