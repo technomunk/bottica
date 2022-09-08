@@ -107,5 +107,6 @@ def run_bot(discord_token: str = "", notify: bool = False) -> None:
             bot.notify = notify
             bot.on_command_error = handle_command_error  # type: ignore
             await bot.start(discord_token)
+        await bot.close()
 
     event_loop.run_until_complete(runner())
