@@ -1,7 +1,8 @@
 """Easy data persistence using runtime inspection."""
 
 import json
-from inspect import isawaitable
+from importlib import import_module
+from inspect import getmro, isawaitable
 from typing import Any, Callable, TypeAlias, get_type_hints
 
 from .deserializers import DEFAULT_DESERIALIZERS
@@ -30,15 +31,24 @@ def marshall(
     """Take any fields annotated as persistent and make sure they are serializeable."""
     data = {}
 
-    hints = get_type_hints(obj, include_extras=True)
-    for field, hint in hints.items():
-        if PERSISTENT not in getattr(hint, "__metadata__", ()):
+    for cls in reversed(getmro(type(obj))):
+        if cls.__module__ == "__builtin__":
             continue
-        field_type = getattr(hint, "__origin__", hint)
-        if serializer := serializers.get(field_type) or DEFAULT_SERIALIZERS.get(field_type):
-            data[field] = serializer(getattr(obj, field))
-        else:
-            data[field] = getattr(obj, field)
+
+        hints = get_type_hints(
+            cls,
+            globalns=vars(import_module(type(obj).__module__)),
+            include_extras=True,
+        )
+
+        for field, hint in hints.items():
+            if PERSISTENT not in getattr(hint, "__metadata__", ()):
+                continue
+            field_type = getattr(hint, "__origin__", hint)
+            if serializer := serializers.get(field_type) or DEFAULT_SERIALIZERS.get(field_type):
+                data[field] = serializer(getattr(obj, field))
+            else:
+                data[field] = getattr(obj, field)
 
     return data
 
@@ -51,21 +61,29 @@ async def unmarshall(
     deserializer_opts: dict = {},
 ):
     """Read data from provided serialized dictionary into given object."""
-    hints = get_type_hints(obj, include_extras=True)
-    for field, hint in hints.items():
-        if field not in data:
-            continue
-        if PERSISTENT not in getattr(hint, "__metadata__", ()):
+    for cls in reversed(getmro(type(obj))):
+        if cls.__module__ == "__builtin":
             continue
 
-        field_type = getattr(hint, "__origin__", hint)
-        if deserializer := deserializers.get(field_type) or DEFAULT_DESERIALIZERS.get(field_type):
-            value = deserializer(data[field], deserializer_opts)
-            if isawaitable(value):
-                await value
-            setattr(obj, field, value)
-        else:
-            setattr(obj, field, data[field])
+        hints = get_type_hints(
+            cls,
+            globalns=vars(import_module(type(obj).__module__)),
+            include_extras=True,
+        )
+        for field, hint in hints.items():
+            if field not in data:
+                continue
+            if PERSISTENT not in getattr(hint, "__metadata__", ()):
+                continue
+
+            field_type = getattr(hint, "__origin__", hint)
+            if deserializer := deserializers.get(field_type) or DEFAULT_DESERIALIZERS.get(field_type):
+                value = deserializer(data[field], deserializer_opts)
+                if isawaitable(value):
+                    value = await value
+                setattr(obj, field, value)
+            else:
+                setattr(obj, field, data[field])
 
 
 def persist(

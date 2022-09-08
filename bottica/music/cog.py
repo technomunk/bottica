@@ -15,6 +15,7 @@ from bottica.infrastructure.error import atask
 from bottica.infrastructure.util import has_listening_members, is_listening
 from bottica.music import check
 from bottica.util import fmt
+from bottica.util.persist import persist
 
 from .context import MusicContext
 from .download import process_request
@@ -76,8 +77,9 @@ class Music(cmd.Cog):
                     mctx.update_voice_client(voice_client)
 
     async def close(self):
+        _logger.debug("saving...")
         for mctx in self.contexts.values():
-            mctx.save(mctx.filename)
+            persist(mctx, mctx.filename)
 
     @cmd.Cog.listener()
     async def on_voice_state_update(
