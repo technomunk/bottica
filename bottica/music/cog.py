@@ -12,8 +12,9 @@ import discord.ext.commands as cmd
 from bottica import response
 from bottica.file import GUILD_CONTEXT_FOLDER, SONG_REGISTRY_FILENAME
 from bottica.infrastructure.error import atask
-from bottica.infrastructure.util import format_duration, has_listening_members, is_listening, onoff
+from bottica.infrastructure.util import has_listening_members, is_listening
 from bottica.music import check
+from bottica.util import fmt
 
 from .context import MusicContext
 from .download import process_request
@@ -180,7 +181,7 @@ class Music(cmd.Cog):
         """Enable, disable or check shuffle mode."""
         mctx = self.get_music_context(ctx)
         if enabled is None:
-            atask(ctx.reply(f"Shuffle is {onoff(mctx.shuffle_enabled)}."))
+            atask(ctx.reply(f"Shuffle is {fmt.onoff(mctx.shuffle_enabled)}."))
             return
         mctx.shuffle_enabled = enabled
 
@@ -194,7 +195,7 @@ class Music(cmd.Cog):
         """
         mctx = self.get_music_context(ctx)
         if enabled is None:
-            atask(ctx.reply(f"Radio mode is {onoff(mctx.radio_enabled)}"))
+            atask(ctx.reply(f"Radio mode is {fmt.onoff(mctx.radio_enabled)}"))
             return
         mctx.radio_enabled = enabled
         if enabled and not mctx.is_playing():
@@ -259,7 +260,7 @@ class Music(cmd.Cog):
         """Display information about the current song queue."""
         mctx = self.get_music_context(ctx)
         if mctx.song_queue:
-            durstr = format_duration(mctx.song_queue.duration)
+            durstr = fmt.duration(mctx.song_queue.duration)
             desc = f"I have {len(mctx.song_queue)} songs queued at the moment. ({durstr})"
             embed = discord.Embed(description=desc)
             atask(ctx.reply(embed=embed))

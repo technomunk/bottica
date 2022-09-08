@@ -5,32 +5,7 @@ from typing import Any, Tuple, TypeVar
 import discord
 from discord.ext.commands import Converter
 
-SIZE_NAMES = ["B", "KiB", "MiB", "GiB", "TiB", "PiB"]
-SIZE_INCREMENT = 1 << 10
-
 T = TypeVar("T")
-
-
-def onoff(val: bool) -> str:
-    return "on" if val else "off"
-
-
-def format_duration(seconds: int) -> str:
-    minutes, seconds = divmod(seconds, 60)
-    hours, minutes = divmod(minutes, 60)
-    days, hours = divmod(hours, 24)
-    dstr = f"{days}d " if days else ""
-    hstr = f"{hours}:" if hours else ""
-    return f"{dstr}{hstr}{minutes:02d}:{seconds:02d}"
-
-
-def format_size(bytes_: int) -> str:
-    size = float(bytes_)
-    for name in SIZE_NAMES:
-        if size < SIZE_INCREMENT:
-            return f"{size:.1f}{name}"
-        size /= SIZE_INCREMENT
-    return f"{size:.1f} {SIZE_NAMES[-1]}"
 
 
 def converted_type_name(converter: Any) -> str:

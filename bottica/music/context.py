@@ -9,19 +9,19 @@ import logging
 import os
 from functools import partial
 from os import path
-from typing import Optional, cast
+from typing import Annotated, Optional, cast
 
 import discord
 
 from bottica.file import AUDIO_FOLDER, GUILD_CONTEXT_FOLDER, GUILD_SET_FOLDER
-from bottica.infrastructure import cmd, converters
 from bottica.infrastructure.config import GuildConfig
 from bottica.infrastructure.error import atask
-from bottica.infrastructure.persist import Field, Persist
 from bottica.infrastructure.sticky_message import StickyMessage
-from bottica.infrastructure.util import format_duration, has_listening_members
+from bottica.infrastructure.util import has_listening_members
 from bottica.music.download import download_song
 from bottica.music.normalize import stream_normalize_ffmpeg_args
+from bottica.util import cmd, fmt
+from bottica.util.persist import PERSISTENT, persist, restore
 
 from .error import AuthorNotInPlayingChannel, InvalidURLError
 from .song import SongInfo, SongQueue, SongRegistry, SongSet
@@ -32,9 +32,9 @@ _logger = logging.getLogger(__name__)
 DISCARD_FFMPEG_FLUFF = cmd.join(["-vn", "-sn"])
 
 
-class SelectSong(Persist):
-    shuffle_enabled = Field(False)
-    radio_enabled = Field(False)
+class SelectSong:
+    shuffle_enabled: Annotated[bool, PERSISTENT] = False
+    radio_enabled: Annotated[bool, PERSISTENT] = False
 
     def __init__(self, guild_id: int, registry: SongRegistry) -> None:
         super().__init__()
@@ -78,9 +78,9 @@ class SelectSong(Persist):
 
 
 class MusicContext(SelectSong):
-    text_channel: Field[discord.TextChannel] = Field(converter=converters.DiscordChannel())
-    _voice_client = Field(None, converter=converters.Optional(converters.DiscordVoiceClient()))
-    song_message = Field(None, converter=converters.Optional(converters.StickyMessage()))
+    text_channel: Annotated[discord.TextChannel, PERSISTENT]
+    _voice_client: Annotated[Optional[discord.VoiceClient], PERSISTENT] = None
+    song_message: Annotated[Optional[StickyMessage], PERSISTENT] = None
 
     def __init__(
         self,
@@ -110,7 +110,7 @@ class MusicContext(SelectSong):
     ) -> MusicContext:
         # we know the text channel will get loaded, so hackily ignore invalid state
         mctx = cls(guild, cast(discord.TextChannel, None), None, registry)
-        await mctx.load(mctx.filename, client=client)
+        await restore(mctx.filename, mctx, deserializer_opts={"client": client})
 
         if mctx._voice_client is not None:
             await mctx.play_next()
@@ -124,7 +124,7 @@ class MusicContext(SelectSong):
             self.song_message.delete()
         self.song_message = None
         self.disconnect()
-        self.save(self.filename)
+        persist(self, self.filename)
 
     @property
     def filename(self) -> str:
@@ -172,7 +172,7 @@ class MusicContext(SelectSong):
                 self.song_message = None
             return
 
-        duration = format_duration(self._current_song.duration)
+        duration = fmt.duration(self._current_song.duration)
         embed = discord.Embed(description=f"{self._current_song.pretty_link} <> {duration}")
 
         if sticky:
@@ -205,7 +205,7 @@ class MusicContext(SelectSong):
             return
 
         self._current_song = self.pick_song()
-        self.save(self.filename)
+        persist(self, self.filename)
 
         if self._current_song is None:
             # clean up after automatic playback

@@ -18,9 +18,9 @@ import toml
 
 from bottica.bot import run_bot
 from bottica.file import AUDIO_FOLDER, GUILD_SET_FOLDER, SONG_REGISTRY_FILENAME
-from bottica.infrastructure.util import format_size
 from bottica.music.song import FILE_ENCODING, SongCSVDialect, SongKey, open_song_registry
 from bottica.release import release
+from bottica.util import fmt
 from bottica.version import BOT_VERSION
 from bottica.version.migrate import MIGRATIONS
 
@@ -66,7 +66,7 @@ def prune(count: int, unit: str) -> None:
     click.echo(f"Found {len(songs_to_unlink)} files larger than {count}{unit}:")
     for filename in files_to_remove:
         click.echo(filename)
-    remove_files = click.confirm(f"Totalling {format_size(bytes_removed)}. Delete them?")
+    remove_files = click.confirm(f"Totalling {fmt.size(bytes_removed)}. Delete them?")
 
     if remove_files:
 
@@ -78,7 +78,7 @@ def prune(count: int, unit: str) -> None:
         _unlink_songs_in(SONG_REGISTRY_FILENAME, unlink_predicate)
         for filename in files_to_remove:
             remove(join(AUDIO_FOLDER, filename))
-        click.echo(f"Removed {format_size(bytes_removed)}. Have a good day!")
+        click.echo(f"Removed {fmt.size(bytes_removed)}. Have a good day!")
     else:
         click.echo("Operation aborted, all files remain.")
 

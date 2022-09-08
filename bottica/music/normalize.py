@@ -10,8 +10,8 @@ from os import path
 from typing import Any
 
 from bottica.file import AUDIO_FOLDER
-from bottica.infrastructure import cmd
 from bottica.music.song import EXTENSION as SONG_EXTENSION
+from bottica.util import cmd
 
 _logger = logging.getLogger(__name__)
 

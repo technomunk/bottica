@@ -7,11 +7,11 @@ from typing import Iterable, NewType, Optional, cast
 from yt_dlp import YoutubeDL  # type: ignore
 
 from bottica.file import AUDIO_FOLDER, DATA_FOLDER
-from bottica.infrastructure import file
 from bottica.infrastructure.error import atask, event_loop
 from bottica.infrastructure.friendly_error import FriendlyError
 from bottica.music.error import InvalidURLError
 from bottica.music.normalize import normalize_song
+from bottica.util import file
 
 from .song import EXTENSION as SONG_EXTENSION
 from .song import SongInfo
