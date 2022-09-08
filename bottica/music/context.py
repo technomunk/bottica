@@ -22,7 +22,7 @@ from bottica.infrastructure.util import format_duration, has_listening_members
 from bottica.music.download import download_and_normalize, streamable_url
 from bottica.music.normalize import stream_normalize_ffmpeg_args
 
-from .error import AuthorNotInPlayingChannel
+from .error import AuthorNotInPlayingChannel, InvalidURLError
 from .song import SongInfo, SongQueue, SongRegistry, SongSet
 
 _logger = logging.getLogger(__name__)
@@ -214,6 +214,8 @@ class MusicContext(SelectSong):
         if self._next_song and self._next_song.duration <= self._guild_config.max_cached_duration:
             atask(download_and_normalize(self._next_song))
 
+        self.save(self.filename)
+
         if self._current_song is None:
             # clean up after automatic playback
             if self.is_playing():
@@ -227,7 +229,15 @@ class MusicContext(SelectSong):
             self._voice_client.pause()
 
         _logger.debug("playing %s in %s", self._current_song.key, self._guild.name)
-        audio = await self._audio_source(self._current_song)
+        try:
+            audio = await self._audio_source(self._current_song)
+        except InvalidURLError:
+            _logger.warning("Song not available: %s", self._current_song.key)
+            if self.text_channel:
+                msg = f"Sorry. {self._current_song.pretty_link} is not available any more :disappointed:"
+                atask(self.text_channel.send(embed=discord.Embed(description=msg)))
+            atask(self.play_next())
+            return
         self._voice_client.play(audio, after=partial(self._handle_after))
 
         if self.song_message is not None:
@@ -281,4 +291,5 @@ class MusicContext(SelectSong):
             url,
             before_options=DISCARD_FFMPEG_FLUFF,
             options=stream_normalize_ffmpeg_args(),
+            stderr=open(f"{song.filename}.log", "w", encoding="utf8"),
         )

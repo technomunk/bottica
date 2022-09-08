@@ -40,6 +40,9 @@ async def streamable_url(song: SongInfo, allow_caching: bool) -> str:
         ),
     )
 
+    if not info:
+        raise InvalidURLError()
+
     if allow_caching:
         # Run the download completely asynchronously without blocking
         atask(_download_and_normalize(info))
