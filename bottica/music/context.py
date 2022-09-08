@@ -110,7 +110,7 @@ class MusicContext(SelectSong):
         mctx = cls(guild, cast(discord.TextChannel, None), None, registry)
         await mctx.load(mctx.filename, client=client)
 
-        if mctx._voice_client is not None and mctx._current_song:
+        if mctx._voice_client is not None:
             await mctx.play_next()
 
         return mctx
