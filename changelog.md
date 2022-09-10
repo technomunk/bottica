@@ -6,10 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 0.24.0
+
 ### Added
 
 **Announcements**! You can now set a song to play when you enter a channel by calling `b.announcement <song>` ^^
-
 
 ## 0.23.1
 
