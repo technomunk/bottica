@@ -14,6 +14,7 @@ from discord.mentions import AllowedMentions
 
 from bottica.commands import register_commands
 from bottica.infrastructure.error import atask, event_loop, handle_command_error
+from bottica.infrastructure.help import BotticaHelpCommand
 from bottica.music.cog import Music
 from bottica.response import JEALOUS, REACTIONS
 from bottica.sass import make_sass, should_sass
@@ -29,7 +30,7 @@ _logger = logging.getLogger(__name__)
 
 class Bottica(DiscordBot):
     def __init__(self, command_prefix, **options):
-        super().__init__(command_prefix, **options)
+        super().__init__(command_prefix, help_command=BotticaHelpCommand(), **options)
 
         self.status_reporters: List[Callable[[cmd.Context], Iterable[str]]] = []
         self.notify = False

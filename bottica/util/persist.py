@@ -1,9 +1,11 @@
 """Easy data persistence using runtime inspection."""
 
+import asyncio
 import json
+import logging
 from importlib import import_module
 from inspect import getmro, isawaitable
-from typing import Any, Callable, TypeAlias, get_type_hints
+from typing import Any, Awaitable, Callable, Optional, TypeAlias, get_type_hints
 
 from .deserializers import DEFAULT_DESERIALIZERS
 from .serializers import DEFAULT_SERIALIZERS
@@ -14,6 +16,8 @@ class _Persistent:
 
     __slots__ = ()
 
+
+_logger = logging.getLogger(__name__)
 
 Serializer = Callable[[Any], Any]
 Deserializer = Callable[[Any, dict], Any]
@@ -53,14 +57,16 @@ def marshall(
     return data
 
 
-async def unmarshall(
+def unmarshall(
     data: dict,
     obj: object,
     *,
     deserializers: dict[type | TypeAlias, Deserializer] = {},
     deserializer_opts: dict = {},
-):
+) -> Optional[Awaitable[None]]:
     """Read data from provided serialized dictionary into given object."""
+    tasks = []
+
     for cls in reversed(getmro(type(obj))):
         if cls.__module__ == "__builtin":
             continue
@@ -77,13 +83,25 @@ async def unmarshall(
                 continue
 
             field_type = getattr(hint, "__origin__", hint)
-            if deserializer := deserializers.get(field_type) or DEFAULT_DESERIALIZERS.get(field_type):
-                value = deserializer(data[field], deserializer_opts)
-                if isawaitable(value):
-                    value = await value
-                setattr(obj, field, value)
-            else:
-                setattr(obj, field, data[field])
+            try:
+                if deserializer := deserializers.get(field_type) or DEFAULT_DESERIALIZERS.get(
+                    field_type
+                ):
+                    value = deserializer(data[field], deserializer_opts)
+                    if isawaitable(value):
+                        tasks.append(asyncio.create_task(_wait_and_set(obj, field, value)))
+                    setattr(obj, field, value)
+                else:
+                    setattr(obj, field, data[field])
+            # that's the whole point :anger:
+            # pylint: disable=broad-except
+            except Exception as e:
+                _logger.exception(e)
+
+    if tasks:
+        return asyncio.gather(*tasks)
+
+    return None
 
 
 def persist(
@@ -100,17 +118,22 @@ def persist(
         json.dump(marshall(obj, serializers=serializers), file)
 
 
-async def restore(
+def restore(
     filename: str,
     obj: object,
     *,
     deserializers: dict[type | TypeAlias, Deserializer] = {},
     deserializer_opts: dict = {},
-):
+) -> Optional[Awaitable[None]]:
     """
     Restore saved data from provided file.
     """
     with open(filename, "r", encoding="utf8") as file:
         data = json.load(file)
 
-    await unmarshall(data, obj, deserializers=deserializers, deserializer_opts=deserializer_opts)
+    return unmarshall(data, obj, deserializers=deserializers, deserializer_opts=deserializer_opts)
+
+
+async def _wait_and_set(obj: object, name: str, value: Awaitable):
+    value = await value
+    setattr(obj, name, value)

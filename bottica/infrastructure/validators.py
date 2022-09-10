@@ -21,7 +21,7 @@ LessThanT = TypeVar("LessThanT", bound=SupportsLT)
 
 
 class ValidationError(FriendlyError):
-    """An error to prevent an invalid configratio value."""
+    """An error to prevent an invalid configuration value."""
 
 
 class Validator(Generic[VarT], metaclass=ABCMeta):

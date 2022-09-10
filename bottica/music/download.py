@@ -2,7 +2,7 @@
 from functools import partial
 from logging import getLogger
 from os import path
-from typing import Iterable, NewType, Optional, cast
+from typing import NewType, Optional, cast
 
 from yt_dlp import YoutubeDL  # type: ignore
 
@@ -57,13 +57,15 @@ async def download_song(song: SongInfo | ReqInfo, keep: bool) -> str:
     task = _download_and_normalize if keep else _download
     atask(task(req))
 
-    filename = path.join(AUDIO_FOLDER, song.filename.replace(f".{SONG_EXTENSION}", f".{req.get('ext', '')}"))
+    filename = path.join(
+        AUDIO_FOLDER, song.filename.replace(f".{SONG_EXTENSION}", f".{req.get('ext', '')}")
+    )
     await file.wait_until_available(filename, 2)
 
     return filename
 
 
-async def process_request(query: str) -> Iterable[SongInfo]:
+async def process_request(query: str) -> list[SongInfo]:
     """Process provided query and get the songs it requests in order."""
     req_info = await event_loop.run_in_executor(
         None,
@@ -81,7 +83,7 @@ async def process_request(query: str) -> Iterable[SongInfo]:
     req_type = req_info.get("_type", "video")
 
     if req_type == "playlist":
-        return filter(None, (_extract_song_info(req) for req in req_info["entries"]))
+        return list(filter(None, (_extract_song_info(req) for req in req_info["entries"])))
 
     song_info = _extract_song_info(req_info)
     return [song_info] if song_info else []

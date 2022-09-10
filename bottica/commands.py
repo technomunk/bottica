@@ -1,17 +1,18 @@
 """Standalone commands that don't belong to a particular cog."""
 
 import random
-from typing import Set, Union
+from typing import Annotated, Set, Union
 
 import discord
 from discord.ext import commands as cmd
 
+from bottica.infrastructure.command import Description, command
 from bottica.infrastructure.error import atask
 from bottica.sass import make_sass
 from bottica.version import BOT_VERSION
 
 
-@cmd.command()
+@command()
 async def status(ctx: cmd.Context):
     """Print the bot status."""
     lines = [f"Running version `{BOT_VERSION}`"]
@@ -21,8 +22,8 @@ async def status(ctx: cmd.Context):
     atask(ctx.reply(embed=embed))
 
 
-@cmd.command()
-async def rate(ctx: cmd.Context, user: discord.Member):
+@command()
+async def rate(ctx: cmd.Context, user: Annotated[discord.Member, Description("the user to rate")]):
     """Rate the provided user out of 10."""
     if user.id == 305440304528359424 or user == ctx.bot.user:
         rating = 10
@@ -35,15 +36,25 @@ async def rate(ctx: cmd.Context, user: discord.Member):
     atask(ctx.reply(f"{user.mention} is {rating}/10."))
 
 
-@cmd.command()
-async def roll(ctx: cmd.Context, max_: int = 100):
-    """Select a random number up to provided value or 100."""
-    value = random.randint(1, max_)
-    atask(ctx.reply(f"{value} / {max_}"))
+@command()
+async def roll(
+    ctx: cmd.Context,
+    maximum: Annotated[int, Description("the maximum possible value of the roll")] = 100,
+):
+    """
+    Select a random number up to provided value or 100.
+    """
+    value = random.randint(1, maximum)
+    atask(ctx.reply(f"{value} / {maximum}"))
 
 
-@cmd.command()
-async def choose(ctx: cmd.Context, *mentions: Union[discord.Role, discord.Member]):
+@command()
+async def choose(
+    ctx: cmd.Context,
+    *mentions: Annotated[
+        Union[discord.Role, discord.Member], Description("users or roles to chose from")
+    ],
+):
     """Select a single member from provided mentions."""
     selection_set: Set[discord.Member] = set()
     for mention in mentions:
