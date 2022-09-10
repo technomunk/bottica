@@ -5,7 +5,7 @@ Decriptor-based validators for generic data with static duck-typing support.
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
-from typing import Any, Callable, Generic, Protocol, Type, TypeVar, overload
+from typing import Any, Generic, Protocol, Type, TypeVar, overload
 
 from .friendly_error import FriendlyError
 
@@ -21,7 +21,7 @@ LessThanT = TypeVar("LessThanT", bound=SupportsLT)
 
 
 class ValidationError(FriendlyError):
-    """An error to prevent an invalid configratio value."""
+    """An error to prevent an invalid configuration value."""
 
 
 class Validator(Generic[VarT], metaclass=ABCMeta):

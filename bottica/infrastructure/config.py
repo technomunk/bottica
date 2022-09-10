@@ -4,33 +4,27 @@ Facilitation of guild-wide configuration.
 
 from __future__ import annotations
 
-import json
 import logging
 from os import path
-from typing import ClassVar, Dict, Type
+from typing import Annotated, ClassVar, Dict, Type
 
 from bottica.file import GUILD_CONFIG_FOLDER
 from bottica.music.song import SongKey
+from bottica.util.persist import PERSISTENT, persist, restore
 
-from .converters import DeferredConverter
-from .validators import Min, MinMax, ValidationError
+from .validators import Min, MinMax
 
 _logger = logging.getLogger(__name__)
 
 
-def _to_announcements(source: dict) -> Dict[int, SongKey]:
-    return {int(key): (str(val[0]), str(val[1])) for key, val in source.items()}
-
-
 class GuildConfig:
     __instances: ClassVar[Dict[int, GuildConfig]] = {}
-    __fields: ClassVar = ["min_repeat_interval", "max_cached_duration", "announcements"]
 
-    min_repeat_interval: MinMax[int] = MinMax(32, 1, 1024)
-    max_cached_duration: Min[int] = Min(600, -1)
-    announcements = DeferredConverter(_to_announcements, dict)
+    min_repeat_interval: Annotated[MinMax[int], PERSISTENT] = MinMax(32, 1, 1024)
+    max_cached_duration: Annotated[Min[int], PERSISTENT] = Min(600, -1)
+    announcements: Annotated[dict[int, SongKey], PERSISTENT] = {}
 
-    def __init__(self, guild_id: int) -> None:
+    def __init__(self, guild_id: int):
         self.guild_id = guild_id
 
     @classmethod
@@ -41,42 +35,11 @@ class GuildConfig:
 
         config = cls(guild_id)
         if path.exists(config.filename):
-            config.load()
-        config.save()
+            restore(config.filename, config)
+        persist(config, config.filename)
 
         cls.__instances[guild_id] = config
         return config
-
-    def load(self) -> None:
-        """Load values from a file."""
-        with open(self.filename, "r", encoding="utf8") as json_file:
-            config: dict = json.load(json_file)
-
-        for field in self.__fields:
-            try:
-                value = config[field]
-                setattr(self, field, value)
-            except ValidationError:
-                _logger.warning(
-                    "validation error when loading '%s' for guild_id(%i)",
-                    field,
-                    self.guild_id,
-                )
-            except KeyError:
-                _logger.warning(
-                    "'%s' field is not in loaded config for guild_id(%i), defaulting",
-                    field,
-                    self.guild_id,
-                )
-
-    def save(self) -> None:
-        """Save the current values to a file."""
-        config: dict = {}
-        for field in self.__fields:
-            config[field] = getattr(self, field)
-
-        with open(self.filename, "w", encoding="utf8") as json_file:
-            json.dump(config, json_file)
 
     @property
     def filename(self) -> str:

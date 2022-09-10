@@ -2,7 +2,7 @@
 from functools import partial
 from logging import getLogger
 from os import path
-from typing import Iterable, NewType, Optional, cast
+from typing import NewType, Optional, cast
 
 from yt_dlp import YoutubeDL  # type: ignore
 
@@ -57,7 +57,9 @@ async def download_song(song: SongInfo | ReqInfo, keep: bool) -> str:
     task = _download_and_normalize if keep else _download
     atask(task(req))
 
-    filename = path.join(AUDIO_FOLDER, song.filename.replace(f".{SONG_EXTENSION}", f".{req.get('ext', '')}"))
+    filename = path.join(
+        AUDIO_FOLDER, song.filename.replace(f".{SONG_EXTENSION}", f".{req.get('ext', '')}")
+    )
     await file.wait_until_available(filename, 2)
 
     return filename

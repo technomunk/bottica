@@ -110,7 +110,9 @@ class MusicContext(SelectSong):
     ) -> MusicContext:
         # we know the text channel will get loaded, so hackily ignore invalid state
         mctx = cls(guild, cast(discord.TextChannel, None), None, registry)
-        await restore(mctx.filename, mctx, deserializer_opts={"client": client})
+        task = restore(mctx.filename, mctx, deserializer_opts={"client": client})
+        if task:
+            await task
 
         if mctx._voice_client is not None:
             await mctx.play_next()
