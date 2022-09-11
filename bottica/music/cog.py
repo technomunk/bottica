@@ -4,7 +4,7 @@ import logging
 import random
 from functools import partial
 from os import path
-from typing import Annotated, Dict, Iterable, Optional, cast
+from typing import Iterable, Optional, cast
 
 import discord
 import discord.ext.commands as cmd
@@ -12,7 +12,7 @@ import discord.ext.commands as cmd
 from bottica import response
 from bottica.file import GUILD_CONTEXT_FOLDER, SONG_REGISTRY_FILENAME
 from bottica.infrastructure.check import guild_only
-from bottica.infrastructure.command import Description, command
+from bottica.infrastructure.command import command
 from bottica.infrastructure.config import GuildConfig
 from bottica.infrastructure.error import atask
 from bottica.infrastructure.friendly_error import FriendlyError
@@ -36,7 +36,7 @@ class Music(cmd.Cog):
     def __init__(self, bot: cmd.Bot) -> None:
         self.bot = bot
         self.song_registry = SongRegistry(SONG_REGISTRY_FILENAME)
-        self.contexts: Dict[int, MusicContext] = {}
+        self.contexts: dict[int, MusicContext] = {}
 
         self.bot.status_reporters.append(partial(self.status))  # type: ignore
 
@@ -140,10 +140,10 @@ class Music(cmd.Cog):
             music_mode_status,
         )
 
-    @command(aliases=["p"])
+    @command(aliases=["p"], descriptions={"url": "of the song to play"})
     @cmd.check(check.bot_has_voice_permission_in_author_channel)
     @guild_only
-    async def play(self, ctx: cmd.Context, url: Annotated[str, Description("of the song to play")]):
+    async def play(self, ctx: cmd.Context, url: str):
         """
         Play songs found at provided query.
         I will join issuer's voice channel if possible.
@@ -182,13 +182,13 @@ class Music(cmd.Cog):
         if not mctx.is_playing():
             await mctx.play_next()
 
-    @command()
+    @command(descriptions={"enabled": "..."})
     @cmd.check(check.bot_has_voice_permission_in_author_channel)
     @guild_only
     async def shuffle(
         self,
         ctx: cmd.Context,
-        enabled: Annotated[Optional[bool], Description("...")] = None,
+        enabled: Optional[bool] = None,
     ):
         """Enable, disable or check shuffle mode."""
         mctx = self.get_music_context(ctx)
@@ -246,15 +246,9 @@ class Music(cmd.Cog):
         mctx.song_queue.clear()
         mctx.disconnect()
 
-    @command()
+    @command(descriptions={"sticky": "keep the message updated as the song changes"})
     @guild_only
-    async def song(
-        self,
-        ctx: cmd.Context,
-        sticky: Annotated[
-            bool, Description("keep the message updated as the song changes")
-        ] = False,
-    ) -> None:
+    async def song(self, ctx: cmd.Context, sticky: bool = False) -> None:
         """Display information about the current song."""
         if not isinstance(ctx.channel, discord.TextChannel):
             return
@@ -292,12 +286,12 @@ class Music(cmd.Cog):
             return
         await mctx.play_next()
 
-    @command(aliases=["j"])
+    @command(aliases=["j"], descriptions={"channel": "to join"})
     @guild_only
     async def join(
         self,
         ctx: cmd.Context,
-        channel: Annotated[Optional[discord.VoiceChannel], Description("to join")] = None,
+        channel: Optional[discord.VoiceChannel] = None,
     ):
         """Make Bottica join a given voice channel if provided or issuer's voice channel."""
         if channel is None:
@@ -316,13 +310,16 @@ class Music(cmd.Cog):
             e.message = "I'm already playing in another channel, please join me instad :kiss:"
             raise e
 
-    @command(aliases=["sa", "seta", "set_announcement"])
+    @command(
+        aliases=["sa", "seta", "set_announcement"],
+        descriptions={"member": "user to announce", "url": "of the announcement song"},
+    )
     @guild_only
     async def announcement(
         self,
         ctx: cmd.Context,
-        member: Annotated[Optional[discord.Member], Description("user to announce")] = None,
-        url: Annotated[str, Description("of the announcement song")] = "",
+        member: Optional[discord.Member] = None,
+        url: str = "",
     ) -> None:
         """Set the provided song to be played when the user (or you) enters a voice channel."""
         assert ctx.guild is not None
@@ -343,14 +340,15 @@ class Music(cmd.Cog):
         guild_config.announcements[user.id] = songs[0].key
         persist(guild_config, guild_config.filename)
 
-    @command(aliases=["ca", "cleara"])
+    @command(
+        aliases=["ca", "cleara"],
+        descriptions={"member": "user to remove the announcement for"},
+    )
     @guild_only
     async def clear_announcement(
         self,
         ctx: cmd.Context,
-        member: Annotated[
-            Optional[discord.Member], Description("user to remove the announcement for")
-        ] = None,
+        member: Optional[discord.Member] = None,
     ) -> None:
         """Remove the associated announcement song with the provided user (or you)."""
         assert ctx.guild is not None
@@ -372,15 +370,12 @@ class Music(cmd.Cog):
             )
         return song
 
-    @command(aliases=["a"])
+    @command(aliases=["a"], descriptions={"member": "user to announce with a song"})
     @guild_only
     async def announce(
         self,
         ctx: cmd.Context,
-        member: Annotated[
-            Optional[discord.Member],
-            Description("user to announce with a song"),
-        ] = None,
+        member: Optional[discord.Member] = None,
     ) -> None:
         """Play the announcement associated with provided guild member of you."""
         assert ctx.guild is not None

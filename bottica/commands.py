@@ -1,12 +1,12 @@
 """Standalone commands that don't belong to a particular cog."""
 
 import random
-from typing import Annotated, Set, Union
+from typing import Set, Union
 
 import discord
 from discord.ext import commands as cmd
 
-from bottica.infrastructure.command import Description, command
+from bottica.infrastructure.command import command
 from bottica.infrastructure.error import atask
 from bottica.sass import make_sass
 from bottica.version import BOT_VERSION
@@ -22,8 +22,8 @@ async def status(ctx: cmd.Context):
     atask(ctx.reply(embed=embed))
 
 
-@command()
-async def rate(ctx: cmd.Context, user: Annotated[discord.Member, Description("the user to rate")]):
+@command(descriptions={"user": "the user to rate"})
+async def rate(ctx: cmd.Context, user: discord.Member):
     """Rate the provided user out of 10."""
     if user.id == 305440304528359424 or user == ctx.bot.user:
         rating = 10
@@ -36,10 +36,10 @@ async def rate(ctx: cmd.Context, user: Annotated[discord.Member, Description("th
     atask(ctx.reply(f"{user.mention} is {rating}/10."))
 
 
-@command()
+@command(descriptions={"maximum": "the maximum possible value of the roll"})
 async def roll(
     ctx: cmd.Context,
-    maximum: Annotated[int, Description("the maximum possible value of the roll")] = 100,
+    maximum: int = 100,
 ):
     """
     Select a random number up to provided value or 100.
@@ -48,13 +48,8 @@ async def roll(
     atask(ctx.reply(f"{value} / {maximum}"))
 
 
-@command()
-async def choose(
-    ctx: cmd.Context,
-    *mentions: Annotated[
-        Union[discord.Role, discord.Member], Description("users or roles to chose from")
-    ],
-):
+@command(descriptions={"mentions": "users or roles to chose from"})
+async def choose(ctx: cmd.Context, *mentions: Union[discord.Role, discord.Member]):
     """Select a single member from provided mentions."""
     selection_set: Set[discord.Member] = set()
     for mention in mentions:

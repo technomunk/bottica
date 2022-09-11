@@ -2,6 +2,7 @@
 
 
 from importlib import import_module
+from pprint import pprint
 from typing import Any, Callable, Iterable, Optional, Type, get_type_hints
 
 from discord.ext.commands import Command
@@ -22,11 +23,18 @@ class Description:
 def command(
     name: str = MISSING,
     cls: Type[Command[Any, ..., Any]] = MISSING,
+    descriptions: dict[str, str] = {},
     **attrs: Any,
 ) -> Any:
     def parameterized_decorator(func: Callable) -> Command[Any, ..., Any]:
         command_ = discord_command(name, cls, **attrs)(func)
-        _add_parameter_descriptions(command_, func)
+        for param_name, description in descriptions.items():
+            param = command_.params.get(param_name)
+            if not param:
+                raise ValueError(f"Parameter '{param_name}' does not exist in {command_.name}")
+
+            command_.params[param_name] = param.replace(description=description)
+
         return command_
 
     return parameterized_decorator
