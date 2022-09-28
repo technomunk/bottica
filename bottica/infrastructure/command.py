@@ -2,7 +2,6 @@
 
 
 from importlib import import_module
-from pprint import pprint
 from typing import Any, Callable, Iterable, Optional, Type, get_type_hints
 
 from discord.ext.commands import Command

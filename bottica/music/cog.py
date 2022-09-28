@@ -193,8 +193,25 @@ class Music(cmd.Cog):
         """Enable, disable or check shuffle mode."""
         mctx = self.get_music_context(ctx)
         if enabled is None:
+            atask(ctx.reply(f"Shuffling is {fmt.onoff(mctx.shuffle_enabled)}"))
+            return
+
+        mctx.shuffle_enabled = enabled
+
+    @command(descriptions={"enabled": "..."})
+    @cmd.check(check.bot_has_voice_permission_in_author_channel)
+    @guild_only
+    async def radio(
+        self,
+        ctx: cmd.Context,
+        enabled: Optional[bool] = None,
+    ):
+        """Enable, disable or check radio mode."""
+        mctx = self.get_music_context(ctx)
+        if enabled is None:
             atask(ctx.reply(f"Radio mode is {fmt.onoff(mctx.radio_enabled)}"))
             return
+
         mctx.radio_enabled = enabled
         if enabled and not mctx.is_playing():
             await mctx.join_or_throw(ctx.author.voice.channel)  # type: ignore
