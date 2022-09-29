@@ -303,11 +303,18 @@ python-versions = ">=3.7"
 
 [[package]]
 name = "pepver"
-version = "1.0.2"
+version = "1.0.3"
 description = "PEP-440 version parsing, interpretation and manipulation"
 category = "main"
 optional = false
-python-versions = ">=3.8,<4.0"
+python-versions = "^3.8"
+develop = false
+
+[package.source]
+type = "git"
+url = "https://github.com/technomunk/pepver"
+reference = "main"
+resolved_reference = "f03f6bff42ad5653baa7280390811ac1a4829e78"
 
 [[package]]
 name = "platformdirs"
@@ -522,7 +529,7 @@ websockets = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.10"
-content-hash = "07bb7ef2288117a9bc91b01ac5c04e82f7d46fb55a9abfbc52afa0053ef1d96b"
+content-hash = "a9fa266f8530f74d4a547a5bfbbb3e64674396aaa50510e3b606354ee2ef27a7"
 
 [metadata.files]
 aiohttp = []

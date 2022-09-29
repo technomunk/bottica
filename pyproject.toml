@@ -7,10 +7,10 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-"discord.py" = {extras = ["voice"], version = "^2.0.1"}
+"discord.py" = { extras = ["voice"], version = "^2.0.1" }
 click = "^8.1.2"
 dataclass-csv = "^1.4.0"
-pepver = "^1.0.2"
+pepver = { git = "https://github.com/technomunk/pepver", branch = "main" }
 sentry-sdk = "^1.5.8"
 toml = "^0.10.2"
 yt-dlp = "^2022.9.1"
