@@ -303,7 +303,7 @@ python-versions = ">=3.7"
 
 [[package]]
 name = "pepver"
-version = "1.0.1"
+version = "1.0.2"
 description = "PEP-440 version parsing, interpretation and manipulation"
 category = "main"
 optional = false
@@ -522,7 +522,7 @@ websockets = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.10"
-content-hash = "2f8e48753a3e6842165a564fad7ad74a3ea530f62264e7815936f75a357a23d7"
+content-hash = "07bb7ef2288117a9bc91b01ac5c04e82f7d46fb55a9abfbc52afa0053ef1d96b"
 
 [metadata.files]
 aiohttp = []

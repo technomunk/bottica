@@ -45,7 +45,7 @@ def release(bump: str, dry_run: bool) -> None:
 
     version = click.prompt(
         "Release version",
-        default=str(BOT_VERSION.update(bump)),  # type: ignore
+        default=str(BOT_VERSION.update(bump)),
         value_proc=partial(Version.parse),
     )
 
