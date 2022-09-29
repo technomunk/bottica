@@ -23,7 +23,7 @@ from bottica.music.normalize import stream_normalize_ffmpeg_args
 from bottica.util import cmd, fmt
 from bottica.util.persist import PERSISTENT, persist, restore
 
-from .error import AuthorNotInPlayingChannel, InvalidURLError
+from .error import AuthorNotInPlayingChannel, InvalidURLError, RestrictedChannel
 from .song import SongInfo, SongQueue, SongRegistry, SongSet
 
 _logger = logging.getLogger(__name__)
@@ -84,6 +84,7 @@ class MusicContext(SelectSong):
 
     def __init__(
         self,
+        client: discord.Client,
         guild: discord.Guild,
         text_channel: discord.TextChannel,
         voice_client: Optional[discord.VoiceClient],
@@ -91,6 +92,7 @@ class MusicContext(SelectSong):
     ):
         super().__init__(guild_id=guild.id, registry=registry)
 
+        self._client = client
         self._guild = guild
 
         self._voice_client = voice_client
@@ -109,7 +111,7 @@ class MusicContext(SelectSong):
         registry: SongRegistry,
     ) -> MusicContext:
         # we know the text channel will get loaded, so hackily ignore invalid state
-        mctx = cls(guild, cast(discord.TextChannel, None), None, registry)
+        mctx = cls(client, guild, cast(discord.TextChannel, None), None, registry)
         task = restore(mctx.filename, mctx, deserializer_opts={"client": client})
         if task:
             await task
@@ -150,6 +152,14 @@ class MusicContext(SelectSong):
             and has_listening_members(self._voice_client.channel)  # type: ignore
         ):
             raise AuthorNotInPlayingChannel()
+
+        guild_config = GuildConfig.get(self.guild_id)
+        if guild_config.music_channels and (channel.id not in guild_config.music_channels):
+            voice_channels = [
+                cast(discord.VoiceChannel, await self._client.fetch_channel(channel_id))
+                for channel_id in guild_config.music_channels
+            ]
+            raise RestrictedChannel(voice_channels)
 
         if self._voice_client is None:
             self._voice_client = await channel.connect()

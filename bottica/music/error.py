@@ -2,6 +2,7 @@
 import discord
 
 from bottica.infrastructure.friendly_error import FriendlyError
+from bottica.util import fmt
 
 
 class AuthorNotVoiceConnectedError(FriendlyError):
@@ -17,6 +18,13 @@ class AuthorNotInPlayingChannel(FriendlyError):
 class BotLacksVoicePermissions(FriendlyError):
     def __init__(self, channel: discord.VoiceChannel):
         super().__init__(f'I lack voice permissions for "{channel.name}"')
+
+
+class RestrictedChannel(FriendlyError):
+    def __init__(self, channels: list[discord.VoiceChannel]):
+        super().__init__(
+            f"Sorry, I can only play music in {fmt.sequence(channel.mention for channel in channels)}!",
+        )
 
 
 class InvalidURLError(FriendlyError):

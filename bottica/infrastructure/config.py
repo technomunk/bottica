@@ -23,6 +23,7 @@ class GuildConfig:
     min_repeat_interval: Annotated[MinMax[int], PERSISTENT] = MinMax(32, 1, 1024)
     max_cached_duration: Annotated[Min[int], PERSISTENT] = Min(600, -1)
     announcements: Annotated[dict[int, SongKey], PERSISTENT] = {}
+    music_channels: Annotated[list[int], PERSISTENT] = []
 
     def __init__(self, guild_id: int):
         self.guild_id = guild_id

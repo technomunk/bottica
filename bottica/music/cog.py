@@ -91,7 +91,7 @@ class Music(cmd.Cog):
     async def on_voice_state_update(
         self,
         member: discord.Member,
-        _before: discord.VoiceState,
+        before: discord.VoiceState,
         after: discord.VoiceState,
     ) -> None:
         if member == self.bot.user:
@@ -110,14 +110,15 @@ class Music(cmd.Cog):
 
         try_resume = mctx.voice_channel == after.channel
 
-        try:
-            song = self.get_announcement(guild_id, member.id)
-            if song is not None:
-                await mctx.join_or_throw(after.channel)
-                await mctx.play_announcement(song)
-                return
-        except FriendlyError:
-            pass
+        if before.channel is None:
+            try:
+                song = self.get_announcement(guild_id, member.id)
+                if song is not None:
+                    await mctx.join_or_throw(after.channel)
+                    await mctx.play_announcement(song)
+                    return
+            except FriendlyError:
+                pass
 
         if try_resume:
             await mctx.join_or_throw(after.channel)
@@ -416,3 +417,18 @@ class Music(cmd.Cog):
             raise FriendlyError("Looks like you don't have an announcement set :smile:")
 
         await mctx.play_announcement(song)
+
+    @command(descriptions={"channels": "One or more voice channels where I'm allowed to play music."})
+    @guild_only
+    async def restrict_to(self, ctx: cmd.Context, *channels: discord.VoiceChannel):
+        """Tell me which channels I'm allowed to play music in. If you set it to None - I'll play music anywhere!"""
+        assert ctx.guild is not None
+        guild_config = GuildConfig.get(ctx.guild.id)
+        if channels:
+            guild_config.music_channels = [channel.id for channel in channels]
+            message = "Ok, I'll stick to only those channels!"
+        else:
+            guild_config.music_channels = []
+            message = "Alright, I'll play music anywhere ^^"
+
+        await ctx.reply(message)
