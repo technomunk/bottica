@@ -45,6 +45,7 @@ class Music(cmd.Cog):
         assert isinstance(ctx.channel, discord.TextChannel)
         if ctx.guild.id not in self.contexts:
             mctx = MusicContext(
+                self.bot,
                 ctx.guild,
                 ctx.channel,
                 cast(discord.VoiceClient, ctx.voice_client),
@@ -418,7 +419,9 @@ class Music(cmd.Cog):
 
         await mctx.play_announcement(song)
 
-    @command(descriptions={"channels": "One or more voice channels where I'm allowed to play music."})
+    @command(
+        descriptions={"channels": "One or more voice channels where I'm allowed to play music."}
+    )
     @guild_only
     async def restrict_to(self, ctx: cmd.Context, *channels: discord.VoiceChannel):
         """Tell me which channels I'm allowed to play music in. If you set it to None - I'll play music anywhere!"""

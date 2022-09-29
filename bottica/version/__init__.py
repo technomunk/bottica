@@ -4,7 +4,7 @@ from os import path
 from typing import Final, Iterable
 
 import discord
-from semver import VersionInfo  # type: ignore
+from pepver import Version
 
 from bottica.file import DATA_FOLDER
 
@@ -16,10 +16,10 @@ _VERSION_FILENAME = path.join(DATA_FOLDER, ".version")
 
 
 async def notify_of_new_changes(guilds: Iterable[discord.Guild]) -> None:
-    version = VersionInfo(0)
+    version = Version(0)
     if path.exists(_VERSION_FILENAME):
         with open(_VERSION_FILENAME, "r", encoding="utf8") as version_file:
-            version = VersionInfo.parse(version_file.read())
+            version = Version.parse(version_file.read())
 
     if version == BOT_VERSION:
         return

@@ -7,38 +7,38 @@ Expects https://keepachangelog.com markdown file format.
 from typing import Dict
 
 import discord
-from semver import VersionInfo  # type: ignore
+from pepver import Version
 
 from bottica.markdown import Markdown
 
 CHANGELOG_FILENAME = "changelog.md"
-_INVALID_VERSION = VersionInfo(0)
+_INVALID_VERSION = Version(0)
 
 
-def parse_latest_version() -> VersionInfo:
+def parse_latest_version() -> Version:
     with open(CHANGELOG_FILENAME, "r", encoding="utf8") as changelog_file:
         for line in changelog_file:
             if line.startswith("## "):
                 try:
                     clean_line = line.removeprefix("## ").strip()
-                    return VersionInfo.parse(clean_line)
+                    return Version.parse(clean_line)
                 except ValueError:
                     continue
 
     return _INVALID_VERSION
 
 
-def parse_changes_since(previous_version: VersionInfo) -> Dict[VersionInfo, Dict[str, str]]:
+def parse_changes_since(previous_version: Version) -> Dict[Version, Dict[str, str]]:
     with open(CHANGELOG_FILENAME, "r", encoding="utf8") as changelog_file:
         changelog = Markdown.parse(changelog_file)
 
-    changes: Dict[VersionInfo, Dict[str, str]] = {}
+    changes: Dict[Version, Dict[str, str]] = {}
 
     # looks like a false-positive
     # pylint:disable=not-an-iterable
     for section in changelog[0]:
         try:
-            version = VersionInfo.parse(section.title)
+            version = Version.parse(section.title)
         except ValueError:
             continue
 
@@ -48,7 +48,7 @@ def parse_changes_since(previous_version: VersionInfo) -> Dict[VersionInfo, Dict
     return changes
 
 
-def compose_changelog_message(changelog: Dict[VersionInfo, Dict[str, str]]) -> discord.Embed:
+def compose_changelog_message(changelog: Dict[Version, Dict[str, str]]) -> discord.Embed:
     """Format changes into neat discord message."""
 
     embed = discord.Embed(

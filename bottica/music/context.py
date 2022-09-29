@@ -153,11 +153,12 @@ class MusicContext(SelectSong):
         ):
             raise AuthorNotInPlayingChannel()
 
-        guild_config = GuildConfig.get(self.guild_id)
-        if guild_config.music_channels and (channel.id not in guild_config.music_channels):
+        if self._guild_config.music_channels and (
+            channel.id not in self._guild_config.music_channels
+        ):
             voice_channels = [
                 cast(discord.VoiceChannel, await self._client.fetch_channel(channel_id))
-                for channel_id in guild_config.music_channels
+                for channel_id in self._guild_config.music_channels
             ]
             raise RestrictedChannel(voice_channels)
 

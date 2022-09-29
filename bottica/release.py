@@ -8,24 +8,18 @@ from functools import partial
 from typing import Tuple
 
 import click
-from semver import VersionInfo  # type: ignore
+from pepver import Version
 
 from bottica.markdown import Markdown
 from bottica.version import BOT_VERSION
-
-VERSION_BUMPS = {
-    "major": partial(BOT_VERSION.bump_major),
-    "minor": partial(BOT_VERSION.bump_minor),
-    "patch": partial(BOT_VERSION.bump_patch),
-}
 
 
 @click.command()
 @click.argument(
     "bump",
-    type=click.Choice(["major", "minor", "patch"], case_sensitive=False),
+    type=click.Choice(["major", "minor", "micro"], case_sensitive=False),
     required=False,
-    default="patch",
+    default="minor",
 )
 @click.option(
     "--dry-run", is_flag=True, help="Avoid changing the actual files or creating the release."
@@ -44,9 +38,6 @@ def release(bump: str, dry_run: bool) -> None:
     * Pushes the commit and the tag upstream.
     * Makes a new GitHub release with the latest changelog entry as the changes section.
     """
-    if bump not in VERSION_BUMPS:
-        sys.exit(f"bump must be one of {VERSION_BUMPS.keys()}")
-
     _ensure_dependencies_exist()
     _ensure_latest_trunk_branch()
 
@@ -54,8 +45,8 @@ def release(bump: str, dry_run: bool) -> None:
 
     version = click.prompt(
         "Release version",
-        default=str(VERSION_BUMPS[bump]()),
-        value_proc=partial(VersionInfo.parse),
+        default=str(BOT_VERSION.update(bump)),  # type: ignore
+        value_proc=partial(Version.parse),
     )
 
     changes, updated_changelog = _prepare_changelog(version)
@@ -123,7 +114,7 @@ def _print_commits_since_last_version() -> None:
     subprocess.run(["git", "log", f"v{BOT_VERSION}..@", "--oneline"], check=False)
 
 
-def _prepare_changelog(version: VersionInfo) -> Tuple[str, Markdown]:
+def _prepare_changelog(version: Version) -> Tuple[str, Markdown]:
     changelog = Markdown.parse_file("changelog.md")
     for index, subsection in enumerate(changelog[0]):
         if "unreleased" in subsection.title.lower():
@@ -138,7 +129,7 @@ def _prepare_changelog(version: VersionInfo) -> Tuple[str, Markdown]:
     return "", changelog
 
 
-def _update_files(version: VersionInfo, changelog: Markdown) -> None:
+def _update_files(version: Version, changelog: Markdown) -> None:
     with (
         open("pyproject.toml", "r", encoding="utf8") as rfile,
         open("pyproject.new.toml", "w", encoding="utf8") as wfile,
