@@ -21,6 +21,7 @@ flake8 = "*"
 mypy = "*"
 pylint = "*"
 types-toml = "^0.10.4"
+pytest = "^7.1.3"
 
 [tool.poetry.scripts]
 bottica = "bottica.__main__:cli"

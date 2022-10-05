@@ -5,6 +5,7 @@ import json
 import logging
 from importlib import import_module
 from inspect import getmro, isawaitable
+from os import PathLike
 from typing import Any, Awaitable, Callable, Optional, TypeAlias, get_type_hints
 
 from .deserializers import DEFAULT_DESERIALIZERS
@@ -68,7 +69,7 @@ def unmarshall(
     tasks = []
 
     for cls in reversed(getmro(type(obj))):
-        if cls.__module__ == "__builtin":
+        if cls.__module__ in ["builtins", "__builtin"]:
             continue
 
         hints = get_type_hints(
@@ -106,7 +107,7 @@ def unmarshall(
 
 def persist(
     obj: object,
-    filename: str,
+    filename: str | PathLike,
     *,
     serializers: dict[type | TypeAlias, Serializer] = {},
 ):
@@ -119,7 +120,7 @@ def persist(
 
 
 def restore(
-    filename: str,
+    filename: str | PathLike,
     obj: object,
     *,
     deserializers: dict[type | TypeAlias, Deserializer] = {},

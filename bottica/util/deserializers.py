@@ -5,6 +5,7 @@ from typing import Any, Callable, Optional, Tuple, TypeAlias, TypeVar, cast
 import discord
 
 from bottica.infrastructure.sticky_message import StickyMessage
+from bottica.music.song import SongKey
 
 FromT = TypeVar("FromT")
 ToT = TypeVar("ToT")
@@ -39,8 +40,13 @@ def optional(
     return optional_deserializer
 
 
+def announcement(value: dict[str, list[str]], _opts: dict) -> dict[int, SongKey]:
+    return {int(k): (v[0], v[1]) for k, v in value.items()}
+
+
 DEFAULT_DESERIALIZERS: dict[type | TypeAlias, Callable[[Any, dict], Any]] = {
     discord.TextChannel: discord_text_channel,
     Optional[discord.VoiceClient]: optional(discord_voice_client),
     Optional[StickyMessage]: optional(sticky_message),
+    dict[int, SongKey]: announcement,
 }
