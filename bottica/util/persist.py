@@ -68,7 +68,7 @@ def unmarshall(
     tasks = []
 
     for cls in reversed(getmro(type(obj))):
-        if cls.__module__ == "__builtin":
+        if cls.__module__ in ["builtins", "__builtin"]:
             continue
 
         hints = get_type_hints(
