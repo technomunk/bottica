@@ -6,7 +6,6 @@ import logging
 from importlib import import_module
 from inspect import getmro, isawaitable
 from os import PathLike
-from types import GenericAlias
 from typing import Any, Awaitable, Callable, Optional, TypeAlias, get_type_hints
 
 from .deserializers import DEFAULT_DESERIALIZERS
@@ -108,7 +107,7 @@ def unmarshall(
 
 def persist(
     obj: object,
-    filename: PathLike,
+    filename: str | PathLike,
     *,
     serializers: dict[type | TypeAlias, Serializer] = {},
 ):
@@ -121,7 +120,7 @@ def persist(
 
 
 def restore(
-    filename: PathLike,
+    filename: str | PathLike,
     obj: object,
     *,
     deserializers: dict[type | TypeAlias, Deserializer] = {},
