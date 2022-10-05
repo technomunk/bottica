@@ -10,14 +10,14 @@ from contextlib import contextmanager
 from dataclasses import asdict, astuple, dataclass
 from os import path
 from random import randrange
-from typing import Callable, Deque, Dict, Generator, Iterable, Iterator, Optional, Set, Tuple, cast
+from typing import Callable, Deque, Dict, Generator, Iterable, Iterator, Optional, cast
 from dataclass_csv import DataclassReader
 
 FILE_ENCODING = "utf8"
 EXTENSION = "opus"
 FFMPEG_OPTIONS = {"options": "-vn"}
 
-SongKey = Tuple[str, str]
+SongKey = tuple[str, str]
 
 _logger = logging.getLogger(__name__)
 
@@ -85,7 +85,7 @@ class SongRegistry:
     """
 
     def __init__(self, filename: str) -> None:
-        self._data: Dict[SongKey, Tuple[int, str]] = {}
+        self._data: Dict[SongKey, tuple[int, str]] = {}
         self._filename = filename
         self._header_written = False
         if path.exists(filename):
@@ -232,7 +232,7 @@ class SongSet(_SongKeyCollection):
         super().__init__(registry)
         self.filename = filename
         self._header_written = False
-        self._data: Set[SongKey] = set()
+        self._data: set[SongKey] = set()
 
         if path.exists(filename):
             with open(filename, "r", encoding=FILE_ENCODING) as file:

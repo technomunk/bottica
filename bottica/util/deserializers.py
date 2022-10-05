@@ -40,12 +40,13 @@ def optional(
     return optional_deserializer
 
 
-def announcement(value: dict[int, list[str]], _opts: dict) -> dict[str, SongKey]:
-    return {k: tuple(v) for k, v in value.items()}
+def announcement(value: dict[str, list[str]], _opts: dict) -> dict[int, SongKey]:
+    return {int(k): (v[0], v[1]) for k, v in value.items()}
 
 
 DEFAULT_DESERIALIZERS: dict[type | TypeAlias, Callable[[Any, dict], Any]] = {
     discord.TextChannel: discord_text_channel,
     Optional[discord.VoiceClient]: optional(discord_voice_client),
     Optional[StickyMessage]: optional(sticky_message),
+    dict[int, SongKey]: announcement,
 }
