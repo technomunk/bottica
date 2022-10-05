@@ -37,7 +37,6 @@ class GuildConfig:
         config = cls(guild_id)
         if path.exists(config.filename):
             restore(config.filename, config)
-            _logger.debug("loaded config announcements %s", config.announcements)
         persist(config, config.filename)
 
         cls.__instances[guild_id] = config
