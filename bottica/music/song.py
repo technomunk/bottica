@@ -21,7 +21,7 @@ SongKey = tuple[str, str]
 
 _logger = logging.getLogger(__name__)
 
-_LINKS = {"youtube": "https://www.youtube.com/watch?v={.id}"}
+_LINKS = {"youtube": "https://music.youtube.com/watch?v={.id}"}
 
 
 # csv.Dialect be like that

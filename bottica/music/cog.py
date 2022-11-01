@@ -83,7 +83,7 @@ class Music(cmd.Cog):
                     _logger.debug("Updating MCTX voice client for %s", voice_client.guild.name)
                     mctx.update_voice_client(voice_client)
 
-    async def close(self):
+    def close(self):
         _logger.debug("saving...")
         for mctx in self.contexts.values():
             persist(mctx, mctx.filename)

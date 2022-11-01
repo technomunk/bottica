@@ -3,9 +3,11 @@ Discord bot entry point.
 Register and run the main logic.
 """
 
+import asyncio
 import logging
 import random
-from typing import Callable, Iterable, List
+from types import TracebackType
+from typing import Callable, Iterable, List, Optional, Type
 
 import discord
 from discord.ext import commands as cmd
@@ -13,7 +15,7 @@ from discord.ext.commands import Bot as DiscordBot
 from discord.mentions import AllowedMentions
 
 from bottica.commands import register_commands
-from bottica.infrastructure.error import atask, event_loop, handle_command_error
+from bottica.infrastructure.error import atask, handle_command_error
 from bottica.infrastructure.help import BotticaHelpCommand
 from bottica.music.cog import Music
 from bottica.response import JEALOUS, REACTIONS
@@ -35,16 +37,23 @@ class Bottica(DiscordBot):
         self.status_reporters: List[Callable[[cmd.Context], Iterable[str]]] = []
         self.notify = False
 
-    async def close(self) -> None:
+    def close_cogs(self):
         for cog in self.cogs.values():
             if closer := getattr(cog, "close"):
-                await closer()
-        await super().close()
+                closer()
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_value: Optional[BaseException],
+        traceback: Optional[TracebackType],
+    ) -> None:
+        self.close_cogs()
+        await super().__aexit__(exc_type, exc_value, traceback)
 
 
 bot = Bottica(
-    cmd.when_mentioned_or("b."),
-    loop=event_loop,
+    cmd.when_mentioned_or("b.", "B."),
     intents=intents,
     allowed_mentions=AllowedMentions(users=True),
 )
@@ -108,5 +117,6 @@ def run_bot(discord_token: str = "", notify: bool = False) -> None:
             bot.notify = notify
             bot.on_command_error = handle_command_error  # type: ignore
             await bot.start(discord_token)
+        bot.close_cogs()
 
-    event_loop.run_until_complete(runner())
+    asyncio.run(runner())

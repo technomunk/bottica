@@ -1,4 +1,5 @@
 """Song data download utilities"""
+import asyncio
 from functools import partial
 from logging import getLogger
 from os import path
@@ -7,7 +8,7 @@ from typing import NewType, Optional, cast
 from yt_dlp import YoutubeDL  # type: ignore
 
 from bottica.file import AUDIO_FOLDER, DATA_FOLDER
-from bottica.infrastructure.error import atask, event_loop
+from bottica.infrastructure.error import atask
 from bottica.infrastructure.friendly_error import FriendlyError
 from bottica.music.error import InvalidURLError
 from bottica.music.normalize import normalize_song
@@ -67,7 +68,7 @@ async def download_song(song: SongInfo | ReqInfo, keep: bool) -> str:
 
 async def process_request(query: str) -> list[SongInfo]:
     """Process provided query and get the songs it requests in order."""
-    req_info = await event_loop.run_in_executor(
+    req_info = await asyncio.get_running_loop().run_in_executor(
         None,
         partial(
             _loader.extract_info,
@@ -104,7 +105,7 @@ def _extract_song_info(info: ReqInfo) -> Optional[SongInfo]:
 
 
 async def _get_info(song: SongInfo) -> ReqInfo:
-    return await event_loop.run_in_executor(
+    return await asyncio.get_running_loop().run_in_executor(
         None,
         partial(
             _loader.extract_info,
@@ -120,7 +121,7 @@ async def _download_and_normalize(req: ReqInfo):
 
 
 async def _download(req: ReqInfo) -> str:
-    ie_info = await event_loop.run_in_executor(
+    ie_info = await asyncio.get_running_loop().run_in_executor(
         None,
         partial(
             _loader.process_ie_result,
@@ -133,29 +134,3 @@ async def _download(req: ReqInfo) -> str:
         raise DownloadError()
 
     return ie_info["requested_downloads"][0]["filepath"]
-    # # fmt: off
-    # command = [
-    #     "ffmpeg",
-    #     "-v", "error",
-    #     "-y",
-    #     "-nostdin",
-    #     "-vn",  # no video
-    #     "-sn",  # no audio
-    #     "-i", url,
-    #     "-map_chapters", "-1",
-    #     "-map_metadata", "-1",
-    #     filename,
-    # ]
-    # # fmt: on
-    # process = await create_subprocess_shell(
-    #     cmd.join(command),
-    #     stdin=subprocess.DEVNULL,
-    #     stderr=subprocess.PIPE,
-    #     stdout=subprocess.DEVNULL,
-    # )
-
-    # error_code = await process.wait()
-    # if error_code:
-    #     _, output = await process.communicate()
-    #     _logger.error(output.decode())
-    #     raise DownloadError()
