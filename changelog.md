@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+* Youtube URLs now lead to `music.youtube`
+* You can ask me for anything more easily from mobile (I'll respond to `B.<command>`)
+* I won't loiter around as much :innocent:
+
 ## 0.25
 
 ### Added
