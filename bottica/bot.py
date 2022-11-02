@@ -101,6 +101,6 @@ def run_bot(discord_token: str = "", notify: bool = False) -> None:
 async def _run_bot(discord_token: str, notify: bool):
     async with bot:
         bot.notify = notify
-        bot.on_command_error = handle_command_error
+        bot.on_command_error = handle_command_error  # type: ignore
         await bot.add_cog(Music(bot))
         await bot.start(discord_token)
