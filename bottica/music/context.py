@@ -4,6 +4,7 @@ Collection of inter-dependent state variables required for playing songs in an o
 Additionally handles state persistence through restarts.
 """
 from __future__ import annotations
+import asyncio
 
 import logging
 import os
@@ -266,7 +267,7 @@ class MusicContext(SelectSong):
 
         # queue still includes the current song, so check if length is > 1
         if len(self._queue) > 1 or self.radio_enabled:
-            atask(self.play_next())
+            asyncio.run_coroutine_threadsafe(self.play_next(), self._client.loop)
         else:
             if self.song_message is not None:
                 self.song_message.delete()
