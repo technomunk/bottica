@@ -40,6 +40,10 @@ class Music(cmd.Cog):
 
         self.bot.status_reporters.append(partial(self.status))  # type: ignore
 
+    async def cog_unload(self):
+        for mctx in self.contexts.values():
+            persist(mctx, mctx.filename)
+
     def get_music_context(self, ctx: cmd.Context) -> MusicContext:
         assert ctx.guild is not None
         assert isinstance(ctx.channel, discord.TextChannel)
@@ -82,11 +86,6 @@ class Music(cmd.Cog):
                 if mctx := self.contexts.get(voice_client.guild):
                     _logger.debug("Updating MCTX voice client for %s", voice_client.guild.name)
                     mctx.update_voice_client(voice_client)
-
-    def close(self):
-        _logger.debug("saving...")
-        for mctx in self.contexts.values():
-            persist(mctx, mctx.filename)
 
     @cmd.Cog.listener()
     async def on_voice_state_update(

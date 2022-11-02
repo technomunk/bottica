@@ -4,10 +4,11 @@ Register and run the main logic.
 """
 
 import asyncio
+import atexit
 import logging
 import random
-from types import TracebackType
-from typing import Callable, Iterable, List, Optional, Type
+import signal
+from typing import Callable, Iterable, List
 
 import discord
 from discord.ext import commands as cmd
@@ -36,20 +37,6 @@ class Bottica(DiscordBot):
 
         self.status_reporters: List[Callable[[cmd.Context], Iterable[str]]] = []
         self.notify = False
-
-    def close_cogs(self):
-        for cog in self.cogs.values():
-            if closer := getattr(cog, "close"):
-                closer()
-
-    async def __aexit__(
-        self,
-        exc_type: Optional[Type[BaseException]],
-        exc_value: Optional[BaseException],
-        traceback: Optional[TracebackType],
-    ) -> None:
-        self.close_cogs()
-        await super().__aexit__(exc_type, exc_value, traceback)
 
 
 bot = Bottica(
@@ -110,13 +97,12 @@ async def jealousy(message: discord.Message):
 def run_bot(discord_token: str = "", notify: bool = False) -> None:
     """Run Bottica until cancelled."""
     register_commands(bot)
+    asyncio.run(_run_bot(discord_token, notify))
 
-    async def runner():
-        async with bot:
-            await bot.add_cog(Music(bot))
-            bot.notify = notify
-            bot.on_command_error = handle_command_error  # type: ignore
-            await bot.start(discord_token)
-        bot.close_cogs()
 
-    asyncio.run(runner())
+async def _run_bot(discord_token: str, notify: bool):
+    async with bot:
+        bot.notify = notify
+        bot.on_command_error = handle_command_error
+        await bot.add_cog(Music(bot))
+        await bot.start(discord_token)
