@@ -14,6 +14,7 @@ from bottica.response import REACTIONS
 from .friendly_error import make_user_friendly
 
 _logger = logging.getLogger(__name__)
+_background_tasks: set[Awaitable] = set()
 
 
 async def safe_task(coroutine: Awaitable, ctx: Optional[cmd.Context] = None):
@@ -47,7 +48,9 @@ def atask(awaitable: Awaitable, ctx: Optional[cmd.Context] = None):
     """
     Schedule a coroutine to be executed on bot's event loop without awaiting its result.
     """
-    asyncio.get_running_loop().create_task(safe_task(awaitable, ctx))
+    task = asyncio.create_task(safe_task(awaitable, ctx))
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
 
 
 async def handle_command_error(ctx: cmd.Context, error: cmd.CommandError) -> None:

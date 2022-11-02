@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bottica"
-version = "0.25"
+version = "0.25.1"
 description = "A personal music-playing discord bot project."
 authors = ["Technomunk <thegriffones@gmail.com>"]
 license = "MIT"
