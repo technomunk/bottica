@@ -4,10 +4,8 @@ Register and run the main logic.
 """
 
 import asyncio
-import atexit
 import logging
 import random
-import signal
 from typing import Callable, Iterable, List
 
 import discord

@@ -8,7 +8,6 @@ import asyncio
 
 import logging
 import os
-from functools import partial
 from os import path
 from typing import Annotated, Optional, cast
 
@@ -247,12 +246,17 @@ class MusicContext(SelectSong):
                 atask(self.text_channel.send(embed=discord.Embed(description=msg)))
             atask(self.play_next())
             return
-        self._voice_client.play(audio, after=partial(self._handle_after))
+        self._voice_client.play(audio, after=self._run_after)
 
         if self.song_message is not None:
             atask(self.display_current_song_info(True))
 
-    def _handle_after(self, error: Optional[Exception]) -> None:
+    def _run_after(self, error: Optional[Exception]) -> None:
+        """Wrapper around _handle_after to ensure thread safety"""
+        future = asyncio.run_coroutine_threadsafe(self._handle_after(error), self._client.loop)
+        future.result()
+
+    async def _handle_after(self, error: Optional[Exception]) -> None:
         """Command ran after playback has stopped"""
         self._cleanup_source()
 
@@ -267,7 +271,7 @@ class MusicContext(SelectSong):
 
         # queue still includes the current song, so check if length is > 1
         if len(self._queue) > 1 or self.radio_enabled:
-            asyncio.run_coroutine_threadsafe(self.play_next(), self._client.loop)
+            await self.play_next()
         else:
             if self.song_message is not None:
                 self.song_message.delete()
