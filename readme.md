@@ -23,7 +23,7 @@ Start by using `b.help` which will print all available commands.
 ## Running
 
 ```sh
-poetry run python3 src/manage.py run
+poetry run bottica run
 ```
 
 ## Contributing

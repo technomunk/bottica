@@ -350,14 +350,14 @@ files = [
 ]
 
 [[package]]
-name = "dataclass-csv"
-version = "1.4.0"
+name = "dataclass-csv2"
+version = "0.1.0"
 description = "Map CSV data into dataclasses"
 optional = false
-python-versions = "*"
+python-versions = ">=3.7"
 files = [
-    {file = "dataclass-csv-1.4.0.tar.gz", hash = "sha256:6a9207537ccdc3f381d50c3f5d053ce5a92ef0d61850f7a159e3f52eb79f0402"},
-    {file = "dataclass_csv-1.4.0-py2.py3-none-any.whl", hash = "sha256:e01e99fa75779bb86ae3b9577a06ffc8632061c03115d6a0823137458bfa3d1c"},
+    {file = "dataclass_csv2-0.1.0-py3-none-any.whl", hash = "sha256:b40179bb64988fe57bd88c888b30b448de6d7243fdef954864fc3e68b0c1389c"},
+    {file = "dataclass_csv2-0.1.0.tar.gz", hash = "sha256:1f5099ebd0eb4c36a3886b6dd18f039ee30af34b1dd11e8313094867706d4716"},
 ]
 
 [[package]]
@@ -1484,4 +1484,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "e7bb341068c7bdfaf2846d0f80a18274db5ec0209ad549aaf77ce5924d5df729"
+content-hash = "17c651818c8f243c510a3eb5b1194223970667935503f1ae04f316308230b55a"
