@@ -1,4 +1,5 @@
 """Collection of generic utility functions"""
+
 from inspect import signature
 from typing import Any, Tuple, TypeVar
 

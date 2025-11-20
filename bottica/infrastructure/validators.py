@@ -12,8 +12,7 @@ from .friendly_error import FriendlyError
 
 class SupportsLT(Protocol):
     @abstractmethod
-    def __lt__(self, other: Any) -> bool:
-        ...
+    def __lt__(self, other: Any) -> bool: ...
 
 
 VarT = TypeVar("VarT")
@@ -33,12 +32,10 @@ class Validator(Generic[VarT], metaclass=ABCMeta):
         self.name = "__" + name
 
     @overload
-    def __get__(self, instance: None, owner: Any) -> Validator[VarT]:
-        ...
+    def __get__(self, instance: None, owner: Any) -> Validator[VarT]: ...
 
     @overload
-    def __get__(self, instance: Any, owner: Any) -> VarT:
-        ...
+    def __get__(self, instance: Any, owner: Any) -> VarT: ...
 
     def __get__(self, instance: Any, owner: Any) -> VarT | Validator[VarT]:
         if instance is None:
@@ -54,8 +51,7 @@ class Validator(Generic[VarT], metaclass=ABCMeta):
         setattr(instance, self.name, value)
 
     @abstractmethod
-    def validate(self, value: VarT) -> None:
-        ...
+    def validate(self, value: VarT) -> None: ...
 
 
 class MinMax(Validator[LessThanT]):

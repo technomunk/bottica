@@ -1,4 +1,5 @@
 """Song data download utilities"""
+
 import asyncio
 from functools import partial
 from logging import getLogger
@@ -91,11 +92,11 @@ async def process_request(query: str) -> list[SongInfo]:
 
 
 def _extract_song_info(info: ReqInfo) -> Optional[SongInfo]:
-    info_type = info.get("_type", "video")
+    info_type: str = info.get("_type", "video")
     if info_type not in ("video", "url"):
         return None
 
-    domain = info.get("ie_key", info.get("extractor_key")).lower()
+    domain = cast(str, info.get("ie_key", info.get("extractor_key"))).lower()
     return SongInfo(
         domain,
         id=info["id"],

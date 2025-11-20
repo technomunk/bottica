@@ -1,6 +1,7 @@
 """
 Define song metadata structure as well as helper collections for managing song queues and sets.
 """
+
 from __future__ import annotations
 
 import csv
@@ -257,8 +258,8 @@ class SongSet(_SongKeyCollection):
     def select_random(
         self,
         *,
-        block_list: Iterable[SongInfo] = None,
-        allow_predicate: Callable[[SongInfo], bool] = None,
+        block_list: Iterable[SongInfo] | None = None,
+        allow_predicate: Callable[[SongInfo], bool] | None = None,
     ) -> Optional[SongInfo]:
         if block_list:
             if isinstance(block_list, SongQueue):

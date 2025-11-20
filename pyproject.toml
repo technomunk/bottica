@@ -7,24 +7,24 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-"discord.py" = { extras = ["voice"], version = "^2.0" }
-click = "^8.1"
+"discord.py" = "^2.6"
+click = "^8.3"
 dataclass-csv = "^1.4"
-pepver = "^1.0"
-sentry-sdk = "^1.5"
+pepver = "^1.1"
+sentry-sdk = "^2.25"
 toml = "^0.10"
-yt-dlp = "^2022.9"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.scripts]
+bottica = "bottica.__main__:cli"
+
+[tool.poetry.group.dev.dependencies]
 black = "*"
 flake8 = "*"
 mypy = "*"
 pylint = "*"
-pytest = "^7.1"
+pytest = "^9.0"
 types-toml = "^0.10"
-
-[tool.poetry.scripts]
-bottica = "bottica.__main__:cli"
+flake8-pyproject = "*"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -36,4 +36,15 @@ line_length = 100
 
 [tool.black]
 line-length = 100
-target_version = ["py310"]
+target-version = ["py310"]
+
+[tool.flake8]
+extend-ignore = ["E203"]
+max-line-length = 120
+extend-exclude = "bottica/music"
+
+[tool.mypy]
+python_version = "3.10"
+explicit_package_bases = true
+namespace_packages = true
+exclude = ['/bottica/music/']

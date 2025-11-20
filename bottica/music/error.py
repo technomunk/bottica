@@ -1,4 +1,5 @@
 """Music-specific errors"""
+
 import discord
 
 from bottica.infrastructure.friendly_error import FriendlyError

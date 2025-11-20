@@ -1,4 +1,5 @@
 """Sassy random remarks that give the bot more character."""
+
 from random import choice, random
 import discord
 

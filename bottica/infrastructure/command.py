@@ -1,6 +1,5 @@
 """Customized `command` decorator with additional functionality."""
 
-
 from importlib import import_module
 from typing import Any, Callable, Iterable, Optional, Type, get_type_hints
 
@@ -9,6 +8,8 @@ from discord.ext.commands import command as discord_command
 from discord.ext.commands.core import MISSING
 
 
+# Optimized data holder
+# pylint: disable=too-few-public-methods
 class Description:
     """Description of a command parameter that can be used in conjunction with typing.Annotated."""
 

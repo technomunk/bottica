@@ -1,4 +1,5 @@
 """Human/user-friendly response wrapping of typical exceptions."""
+
 from typing import Callable, Dict, Type, Union
 
 from discord.ext.commands.errors import (

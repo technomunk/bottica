@@ -1,4 +1,5 @@
 """Old SongInfo structure for migration-capability"""
+
 import csv
 from dataclasses import asdict, astuple
 from os import path

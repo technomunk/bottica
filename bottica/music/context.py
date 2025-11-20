@@ -3,6 +3,7 @@ Collection of inter-dependent state variables required for playing songs in an o
 
 Additionally handles state persistence through restarts.
 """
+
 from __future__ import annotations
 import asyncio
 

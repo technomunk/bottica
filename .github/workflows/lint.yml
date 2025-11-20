@@ -29,7 +29,7 @@ jobs:
 
       - name: Run linting analysis
         run: |
-          poetry run flake8 bottica/
-          poetry run mypy --config-file tox.ini bottica/
-          poetry run pylint bottica/
-          poetry run black --check bottica/
+          poetry run flake8 bottica
+          poetry run mypy bottica
+          poetry run pylint bottica
+          poetry run black --check bottica

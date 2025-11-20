@@ -16,7 +16,6 @@ from discord.mentions import AllowedMentions
 from bottica.commands import register_commands
 from bottica.infrastructure.error import atask, handle_command_error
 from bottica.infrastructure.help import BotticaHelpCommand
-from bottica.music.cog import Music
 from bottica.response import JEALOUS, REACTIONS
 from bottica.sass import make_sass, should_sass
 from bottica.version import notify_of_new_changes
@@ -102,5 +101,5 @@ async def _run_bot(discord_token: str, notify: bool):
     async with bot:
         bot.notify = notify
         bot.on_command_error = handle_command_error  # type: ignore
-        await bot.add_cog(Music(bot))
+        # await bot.add_cog(Music(bot))
         await bot.start(discord_token)

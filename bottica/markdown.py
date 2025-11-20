@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from io import StringIO, TextIOWrapper
-from typing import Iterable, Iterator, List, Optional, Type, overload
+from io import StringIO, TextIOBase, TextIOWrapper
+from typing import Any, Iterable, Iterator, List, Optional, Type, overload
 
 
 @dataclass(slots=True)
@@ -23,14 +23,12 @@ class Markdown:
         return self.compose_content()
 
     @overload
-    def __getitem__(self, index: int | str) -> Markdown:
-        ...
+    def __getitem__(self, index: int | str) -> Markdown: ...
 
     @overload
-    def __getitem__(self, index: slice) -> Iterable[Markdown]:
-        ...
+    def __getitem__(self, index: slice) -> Iterable[Markdown]: ...
 
-    def __getitem__(self, index: int | slice | str) -> Markdown | Iterable[Markdown]:
+    def __getitem__(self, index: Any) -> Markdown | Iterable[Markdown]:
         if isinstance(index, int | slice):
             return self.subsections[index]
 
@@ -51,7 +49,7 @@ class Markdown:
 
     def compose_content(
         self,
-        buffer: Optional[TextIOWrapper] = None,
+        buffer: Optional[TextIOBase] = None,
         include_heading: bool = True,
     ) -> str:
         """
@@ -60,10 +58,7 @@ class Markdown:
         If a string-io object is provided it will be populated
         with content instead of returning a string.
         """
-        if buffer is None:
-            result: TextIOWrapper = StringIO()
-        else:
-            result = buffer
+        result: TextIOBase = buffer or StringIO()
 
         if all([include_heading, self.heading, self.heading != " "]):
             result.write(self.heading)

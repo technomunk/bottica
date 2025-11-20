@@ -1,6 +1,5 @@
 """Extra utilities for file interactions."""
 
-
 import asyncio
 from os import path
 

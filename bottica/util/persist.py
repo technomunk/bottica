@@ -6,12 +6,14 @@ import logging
 from importlib import import_module
 from inspect import getmro, isawaitable
 from os import PathLike
-from typing import Any, Awaitable, Callable, Optional, TypeAlias, get_type_hints
+from typing import Any, Awaitable, Callable, Optional, TypeAlias, cast, get_type_hints
 
 from .deserializers import DEFAULT_DESERIALIZERS
 from .serializers import DEFAULT_SERIALIZERS
 
 
+# Sentinel type class
+# pylint: disable=too-few-public-methods
 class _Persistent:
     """Sentinel type for PERSISTENT annotation"""
 
@@ -100,7 +102,7 @@ def unmarshall(
                 _logger.exception(e)
 
     if tasks:
-        return asyncio.gather(*tasks)
+        return cast(Awaitable, asyncio.gather(*tasks))
 
     return None
 
