@@ -70,7 +70,7 @@ def release(bump: str, dry_run: bool) -> None:
         subprocess.run(
             ["gh", "release", "create", f"v{version}", "-t", str(version), "-F", "-"],
             text=True,
-            input=changes.replace("## ", "# "),
+            input=changes.removeprefix(f"## {version}").replace("### ", "# "),
             check=False,
         )
     click.echo("done")
@@ -124,7 +124,7 @@ def _prepare_changelog(version: Version) -> Tuple[str, Markdown]:
 
             changelog[0].subsections.insert(index, Markdown(2, subsection.title))
             subsection.title = str(version)
-            return subsection.compose_content(), changelog
+            return subsection.compose_content(None, False), changelog
 
     return "", changelog
 
